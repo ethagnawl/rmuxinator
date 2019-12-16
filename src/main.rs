@@ -15,13 +15,7 @@ fn main() {
 
     println!("main.rs {:?}", cli_args);
 
-    let args = [
-        cli_args.project_name,
-        String::from("~"),
-        String::from("one"),
-    ];
-
-    let config = Config::new(&args).unwrap_or_else(|error| {
+    let config = Config::new(cli_args).unwrap_or_else(|error| {
         eprintln!("Problem parsing arguments: {}", error);
         process::exit(1);
     });

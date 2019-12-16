@@ -8,18 +8,7 @@ use std::process::Command;
 extern crate toml;
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    // this should happen in the config constructor
-    let mut f = File::open(config.filename)?;
-    let mut contents = String::new();
-
-    f.read_to_string(&mut contents)?;
-
-    let decoded: Config = toml::from_str(&contents).unwrap();
-    println!("decoded: {:#?}", decoded);
-
-    // validate command $1 (e.g. start new debug)
-    // find config file $2
-    let session_name = decoded.name;
+    let session_name = config.name;
     let args = ["new-session", "-s", &session_name, "-A"];
     let output = Command::new("tmux").args(&args).spawn()?.wait();
 
@@ -47,26 +36,27 @@ impl CliArgs {
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub filename: String,
     pub name: String,
     pub root: String,
     pub windows: String,
 }
 
 impl Config {
-    pub fn new(args: &[String]) -> Result<Config, &'static str> {
-        if args.len() < 3 {
-            return Err("not enough arguments.");
+    pub fn new(cli_args: CliArgs) -> Result<Config, &'static str> {
+        let mut f = match File::open(cli_args.project_name) {
+            Ok(x) => x,
+            Err(_) => return Err("Unable to open config file."),
+        };
+        let mut contents = String::new();
+
+        match f.read_to_string(&mut contents) {
+            Ok(_) => (),
+            Err(_) => return Err("Unable to read config file."),
         }
 
-        println!("args: {:#?}", args);
-
-        Ok(Config {
-            filename: args[0].clone(),
-            name: args[0].clone(),
-            root: args[1].clone(),
-            windows: args[2].clone(),
-        })
+        let decoded: Config = toml::from_str(&contents).unwrap();
+        println!("decoded: {:#?}", decoded);
+        Ok(decoded)
     }
 }
 
