@@ -20,8 +20,6 @@ fn main() {
         process::exit(1);
     });
 
-    // TODO: remove legacy config fields; add new fields
-    // TODO: use config to build script
     if let Err(error) = rmuxinator::run(config) {
         println!("Application error: {}", error);
         process::exit(1);
