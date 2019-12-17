@@ -1,4 +1,5 @@
-name = "quxinator"
+name = "foo"
 root = "~/projects/rmuxinator"
-filename = "Foo.toml"
-windows = "one"
+windows = [
+   { name = "one", root = "/home/peter/projects/rmuxinator", commands = ["echo hi", "echo bye"] }
+]

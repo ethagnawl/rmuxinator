@@ -1,3 +1,5 @@
-name = "quistinart"
-root = "~/projects/quist"
-windows = "one"
+name = "bar"
+root = "~/projects/rmuxinator"
+windows = [
+   { name = "one", root = "/home/peter/projects/rmuxinator", commands = ["echo hi", "echo bye"] }
+]
