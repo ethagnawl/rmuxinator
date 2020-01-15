@@ -13,6 +13,18 @@ binaries for a number of platforms.
 - build and run with: `cargo build && ./target/debug/rmuxinator start Foo.toml`
 
 ## Status
-This project is currently just a proof of concept. It's only capable of parsing
-a project config file, starting a tmux session, creating windows and running
-commands in those windows.
+This project is currently just a proof of concept and I'll be duplicating
+features as I can find time. Right now, it's capable of:
+- parsing a TOML project config file
+- starting a named tmux session
+- creating windows
+- running commands in those windows
+
+Still TODO:
+- remove default bash window or pop window off parsed config list and use that
+- set default cwd for project
+when creating the session (this is how tmuxinator works)
+- set default cwd for window
+- create panes
+- set cwd for pane
+- set pane layout
