@@ -3,37 +3,44 @@ use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 use std::process::Command;
+use std::{thread, time};
 
 extern crate toml;
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     println!("Config: {:#?}", config);
 
+    thread::sleep(time::Duration::from_secs(5));
+
     let session_name = config.name;
 
-    let create_session_args = [
-        "new-session",
-        "-d",
-        "-s",
-        &session_name,
-        // can this be done when the other windows are created?
-        "-n",
-        &config.windows[0].name,
-    ];
+    let create_session_args = ["new-session", "-d", "-s", &session_name];
     let _create_session_output = Command::new("tmux")
         .args(&create_session_args)
         .output()
         .expect("Unable to create session.");
 
-    for (_, window) in config.windows.iter().enumerate() {
-        // TODO: create window
-        // for window.panes ...
-        // for pane.commands ...
-        for (_, command) in window.commands.iter().enumerate() {
+    for (window_index, window) in config.windows.iter().enumerate() {
+        let create_window_command_args = [
+            "new-window",
+            "-t",
+            &format!("{}:{}", session_name, window_index),
+            "-n",
+            &window.name,
+        ];
+
+        let _create_window_command_output = Command::new("tmux")
+            .args(&create_window_command_args)
+            .output()
+            .expect("Unable to run create window command.");
+
+        for (_window_command_index, command) in
+            window.commands.iter().enumerate()
+        {
             let window_command_args = [
                 "send-keys",
                 "-t",
-                &format!("{}:0.0", session_name),
+                &format!("{}:{}.0", session_name, window_index),
                 &command,
                 "Enter",
             ];
