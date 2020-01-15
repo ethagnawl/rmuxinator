@@ -1,5 +1,6 @@
 name = "foo"
 root = "~/projects/rmuxinator"
 windows = [
-   { name = "one", root = "/home/peter/projects/rmuxinator", commands = ["echo hi", "echo bye"] }
+   { name = "one", root = "/home/peter/projects/rmuxinator", commands = ["echo hi one", "echo bye one"] },
+   { name = "two", root = "/home/peter/projects/rmuxinator", commands = ["echo hi two", "echo bye two"] }
 ]
