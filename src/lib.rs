@@ -3,14 +3,38 @@ use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 use std::process::Command;
-use std::{thread, time};
 
 extern crate toml;
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     println!("Config: {:#?}", config);
 
-    thread::sleep(time::Duration::from_secs(5));
+    fn set_window_layout(_window_index: usize, _layout: &Layout) {
+        let set_window_layout_args = ["select-layout", "-t", "foo:2", "tiled"];
+        let _set_window_layout_output = Command::new("tmux")
+            .args(&set_window_layout_args)
+            .output()
+            .expect("Unable to set window layout.");
+    }
+
+    fn create_window(
+        session_name: &String,
+        window_index: usize,
+        window_name: &String,
+    ) {
+        let create_window_command_args = [
+            "new-window",
+            "-t",
+            &format!("{}:{}", session_name, window_index),
+            "-n",
+            &window_name,
+        ];
+
+        let _create_window_command_output = Command::new("tmux")
+            .args(&create_window_command_args)
+            .output()
+            .expect("Unable to run create window command.");
+    }
 
     let session_name = config.name;
 
@@ -21,22 +45,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         .expect("Unable to create session.");
 
     for (window_index, window) in config.windows.iter().enumerate() {
-        let create_window_command_args = [
-            "new-window",
-            "-t",
-            &format!("{}:{}", session_name, window_index),
-            "-n",
-            &window.name,
-        ];
+        create_window(&session_name, window_index, &window.name);
 
-        let _create_window_command_output = Command::new("tmux")
-            .args(&create_window_command_args)
-            .output()
-            .expect("Unable to run create window command.");
-
-        for (_window_command_index, command) in
-            window.commands.iter().enumerate()
-        {
+        for (_, command) in window.commands.iter().enumerate() {
             let window_command_args = [
                 "send-keys",
                 "-t",
@@ -48,6 +59,11 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 .args(&window_command_args)
                 .output()
                 .expect("Unable to run window command.");
+        }
+
+        match &window.layout {
+            Some(layout) => set_window_layout(window_index, layout),
+            None => (),
         }
     }
 
@@ -76,10 +92,20 @@ impl CliArgs {
 }
 
 #[derive(Debug, Deserialize)]
+pub enum Layout {
+    EvenHorizontal,
+    EvenVertical,
+    MainHorizontal,
+    MainVertical,
+    Tiled,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Window {
     pub name: String,
     pub root: String,
     pub commands: Vec<String>,
+    pub layout: Option<Layout>,
 }
 
 #[derive(Debug, Deserialize)]
