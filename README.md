@@ -21,10 +21,10 @@ features as I can find time. Right now, it's capable of:
 - running commands in those windows
 
 Still TODO:
+- create panes
 - remove default bash window or pop window off parsed config list and use that
 - set default cwd for project
 when creating the session (this is how tmuxinator works)
 - set default cwd for window
-- create panes
 - set cwd for pane
 - set pane layout
