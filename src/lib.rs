@@ -6,59 +6,67 @@ use std::process::Command;
 
 extern crate toml;
 
-pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    println!("Config: {:#?}", config);
+fn set_window_layout(_window_index: usize, _layout: &Layout) {
+    let set_window_layout_args = ["select-layout", "-t", "foo:2", "tiled"];
+    let _set_window_layout_output = Command::new("tmux")
+        .args(&set_window_layout_args)
+        .output()
+        .expect("Unable to set window layout.");
+}
 
-    fn set_window_layout(_window_index: usize, _layout: &Layout) {
-        let set_window_layout_args = ["select-layout", "-t", "foo:2", "tiled"];
-        let _set_window_layout_output = Command::new("tmux")
-            .args(&set_window_layout_args)
-            .output()
-            .expect("Unable to set window layout.");
-    }
+fn create_window(
+    session_name: &String,
+    window_index: usize,
+    window_name: &String,
+) {
+    let create_window_command_args = [
+        "new-window",
+        "-t",
+        &format!("{}:{}", session_name, window_index),
+        "-n",
+        &window_name,
+    ];
 
-    fn create_window(
-        session_name: &String,
-        window_index: usize,
-        window_name: &String,
-    ) {
-        let create_window_command_args = [
-            "new-window",
-            "-t",
-            &format!("{}:{}", session_name, window_index),
-            "-n",
-            &window_name,
-        ];
+    let _create_window_command_output = Command::new("tmux")
+        .args(&create_window_command_args)
+        .output()
+        .expect("Unable to run create window command.");
+}
 
-        let _create_window_command_output = Command::new("tmux")
-            .args(&create_window_command_args)
-            .output()
-            .expect("Unable to run create window command.");
-    }
-
-    let session_name = config.name;
-
-    let create_session_args = ["new-session", "-d", "-s", &session_name];
+fn create_session(session_name: &String) {
+    let create_session_args = ["new-session", "-d", "-s", session_name];
     let _create_session_output = Command::new("tmux")
         .args(&create_session_args)
         .output()
         .expect("Unable to create session.");
+}
+
+fn run_command(session_name: &String, window_index: &usize, command: &String) {
+    let window_command_args = [
+        "send-keys",
+        "-t",
+        &format!("{}:{}.0", session_name, window_index),
+        &command,
+        "Enter",
+    ];
+    let _window_command_output = Command::new("tmux")
+        .args(&window_command_args)
+        .output()
+        .expect("Unable to run window command.");
+}
+
+pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    println!("Config: {:#?}", config);
+
+    let session_name = config.name;
+
+    create_session(&session_name);
 
     for (window_index, window) in config.windows.iter().enumerate() {
         create_window(&session_name, window_index, &window.name);
 
         for (_, command) in window.commands.iter().enumerate() {
-            let window_command_args = [
-                "send-keys",
-                "-t",
-                &format!("{}:{}.0", session_name, window_index),
-                &command,
-                "Enter",
-            ];
-            let _window_command_output = Command::new("tmux")
-                .args(&window_command_args)
-                .output()
-                .expect("Unable to run window command.");
+            run_command(&session_name, &window_index, &command);
         }
 
         match &window.layout {
