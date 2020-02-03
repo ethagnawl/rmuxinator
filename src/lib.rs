@@ -79,6 +79,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         }
     }
 
+    // TODO: Move this into helper. First attempt resulted in error caused by
+    // return type. I think I either need to return the command and then spawn
+    // or return the result of calling spawn.
     let attach_args = ["-u", "attach-session", "-t", &session_name];
     let _attach_output =
         Command::new("tmux").args(&attach_args).spawn()?.wait();
