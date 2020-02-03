@@ -14,21 +14,23 @@ fn set_window_layout(_window_index: usize, _layout: &Layout) {
         .expect("Unable to set window layout.");
 }
 
-fn create_window(
+fn build_create_window_args(
     session_name: &String,
     window_index: usize,
     window_name: &String,
-) {
-    let create_window_command_args = [
-        "new-window",
-        "-t",
-        &format!("{}:{}", session_name, window_index),
-        "-n",
-        &window_name,
-    ];
+) -> Vec<String> {
+    vec![
+        String::from("new-window"),
+        String::from("-t"),
+        format!("{}:{}", session_name, window_index.to_string()),
+        String::from("-n"),
+        String::from(window_name),
+    ]
+}
 
+fn create_window(create_window_args: Vec<String>) {
     let _create_window_command_output = Command::new("tmux")
-        .args(&create_window_command_args)
+        .args(&create_window_args)
         .output()
         .expect("Unable to run create window command.");
 }
@@ -63,7 +65,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     create_session(&session_name);
 
     for (window_index, window) in config.windows.iter().enumerate() {
-        create_window(&session_name, window_index, &window.name);
+        let create_window_args =
+            build_create_window_args(&session_name, window_index, &window.name);
+        create_window(create_window_args);
 
         for (_, command) in window.commands.iter().enumerate() {
             run_command(&session_name, &window_index, &command);
@@ -141,5 +145,28 @@ impl Config {
         println!("decoded: {:#?}", decoded);
 
         Ok(decoded)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_builds_window_args() {
+        let session_name = String::from("a session");
+        let window_name = String::from("a window");
+        let window_index = 42;
+
+        let expected = vec![
+            String::from("new-window"),
+            String::from("-t"),
+            format!("{}:{}", &session_name, &window_index),
+            String::from("-n"),
+            String::from(&window_name),
+        ];
+        let actual =
+            build_create_window_args(&session_name, window_index, &window_name);
+        assert_eq!(expected, actual);
     }
 }
