@@ -18,7 +18,7 @@ features as I can find time. Right now, it's capable of:
 - parsing a TOML project config file
 - starting a named tmux session
 - creating windows
-- running commands in those windows
+- creating panes
 
 Still TODO:
 - handle shell failures -- `tmux kill-window` was failing silently
