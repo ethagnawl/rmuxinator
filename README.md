@@ -22,11 +22,12 @@ features as I can find time. Right now, it's capable of:
 
 Still TODO:
 - handle shell failures -- `tmux kill-window` was failing silently
-- create panes
 - set default cwd for project when creating the session (this is how tmuxinator
 works)
 - set default cwd for window
+- run pane commands
 - set cwd for pane
 - set pane layout
+- set pane name
 - separate tmux arg construction and shell calls. the args can all be moved
 into structs and computed up front

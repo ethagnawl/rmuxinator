@@ -6,6 +6,14 @@ use std::process::Command;
 
 extern crate toml;
 
+fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
+    vec![
+        String::from("splitw"),
+        String::from("-t"),
+        format!("{}:{}", session_name, window_index.to_string()),
+    ]
+}
+
 fn build_window_layout_args() -> Vec<String> {
     // TODO: these values should not be hardcoded
     vec![
@@ -71,28 +79,28 @@ fn create_session(session_name: &String, window_name: &String) {
         .expect("Unable to create session.");
 }
 
-fn build_command_args(
-    session_name: &String,
-    window_index: &usize,
-    command: &String,
-) -> Vec<String> {
-    vec![
-        String::from("send-keys"),
-        String::from("-t"),
-        format!("{}:{}.0", session_name, window_index),
-        String::from(command),
-        String::from("Enter"),
-    ]
-}
+// fn build_command_args(
+//     session_name: &String,
+//     window_index: &usize,
+//     command: &String,
+// ) -> Vec<String> {
+//     vec![
+//         String::from("send-keys"),
+//         String::from("-t"),
+//         format!("{}:{}.0", session_name, window_index),
+//         String::from(command),
+//         String::from("Enter"),
+//     ]
+// }
 
-fn run_command(session_name: &String, window_index: &usize, command: &String) {
-    let window_command_args =
-        build_command_args(session_name, window_index, command);
-    let _window_command_output = Command::new("tmux")
-        .args(&window_command_args)
-        .output()
-        .expect("Unable to run window command.");
-}
+// fn run_command(session_name: &String, window_index: &usize, command: &String) {
+//     let window_command_args =
+//         build_command_args(session_name, window_index, command);
+//     let _window_command_output = Command::new("tmux")
+//         .args(&window_command_args)
+//         .output()
+//         .expect("Unable to run window command.");
+// }
 
 fn build_attach_args(session_name: &String) -> Vec<String> {
     vec![
@@ -128,8 +136,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             create_window(create_window_args);
         }
 
-        for (_, command) in window.commands.iter().enumerate() {
-            run_command(&session_name, &window_index, &command);
+        for (_, _pane) in window.panes.iter().enumerate() {
+            let pane_args = build_pane_args(&session_name, &window_index);
+
+            // create_pane();
+            Command::new("tmux")
+                .args(&pane_args)
+                .output()
+                .expect("Unable to create pane.");
+
+            // run_pane_commands(&session_name, &window_index, &command);
         }
 
         match &window.layout {
@@ -175,11 +191,16 @@ pub enum Layout {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Window {
-    pub name: String,
-    pub root: String,
+pub struct Pane {
     pub commands: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Window {
     pub layout: Option<Layout>,
+    pub name: String,
+    pub panes: Vec<Pane>,
+    pub root: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -276,19 +297,32 @@ mod tests {
         assert_eq!(expected, actual);
     }
 
+    // #[test]
+    // fn it_builds_command_args() {
+    //     let session_name = String::from("a session");
+    //     let window_index = 42;
+    //     let command = String::from("echo hi");
+    //     let expected = vec![
+    //         String::from("send-keys"),
+    //         String::from("-t"),
+    //         format!("{}:{}.0", session_name, window_index),
+    //         String::from(&command),
+    //         String::from("Enter"),
+    //     ];
+    //     let actual = build_command_args(&session_name, &window_index, &command);
+    //     assert_eq!(expected, actual);
+    // }
+
     #[test]
-    fn it_builds_command_args() {
+    fn it_builds_pane_args() {
         let session_name = String::from("a session");
-        let window_index = 42;
-        let command = String::from("echo hi");
+        let window_index = 0;
         let expected = vec![
-            String::from("send-keys"),
+            String::from("splitw"),
             String::from("-t"),
-            format!("{}:{}.0", session_name, window_index),
-            String::from(&command),
-            String::from("Enter"),
+            format!("{}:{}", session_name, window_index),
         ];
-        let actual = build_command_args(&session_name, &window_index, &command);
+        let actual = build_pane_args(&session_name, &window_index);
         assert_eq!(expected, actual);
     }
 }
