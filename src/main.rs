@@ -1,5 +1,6 @@
 extern crate rmuxinator;
 
+use rmuxinator::run;
 use rmuxinator::CliArgs;
 use rmuxinator::Config;
 use std::env;
@@ -20,7 +21,7 @@ fn main() {
         process::exit(1);
     });
 
-    if let Err(error) = rmuxinator::run(config) {
+    if let Err(error) = run(config) {
         println!("Application error: {}", error);
         process::exit(1);
     }
