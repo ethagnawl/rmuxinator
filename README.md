@@ -21,9 +21,12 @@ features as I can find time. Right now, it's capable of:
 - running commands in those windows
 
 Still TODO:
+- handle shell failures -- `tmux kill-window` was failing silently
 - create panes
 - set default cwd for project when creating the session (this is how tmuxinator
 works)
 - set default cwd for window
 - set cwd for pane
 - set pane layout
+- separate tmux arg construction and shell calls. the args can all be moved
+into structs and computed up front
