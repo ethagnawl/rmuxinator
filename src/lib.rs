@@ -6,8 +6,18 @@ use std::process::Command;
 
 extern crate toml;
 
+fn build_window_layout_args() -> Vec<String> {
+    // TODO: these values should not be hardcoded
+    vec![
+        String::from("select-layout"),
+        String::from("-t"),
+        String::from("foo:2"),
+        String::from("tiled"),
+    ]
+}
+
 fn set_window_layout(_window_index: usize, _layout: &Layout) {
-    let set_window_layout_args = ["select-layout", "-t", "foo:2", "tiled"];
+    let set_window_layout_args = build_window_layout_args();
     let _set_window_layout_output = Command::new("tmux")
         .args(&set_window_layout_args)
         .output()
@@ -35,26 +45,53 @@ fn create_window(create_window_args: Vec<String>) {
         .expect("Unable to run create window command.");
 }
 
+fn build_session_args(session_name: &String) -> Vec<String> {
+    vec![
+        String::from("new-session"),
+        String::from("-d"),
+        String::from("-s"),
+        String::from(session_name),
+    ]
+}
+
 fn create_session(session_name: &String) {
-    let create_session_args = ["new-session", "-d", "-s", session_name];
+    let create_session_args = build_session_args(&session_name);
     let _create_session_output = Command::new("tmux")
         .args(&create_session_args)
         .output()
         .expect("Unable to create session.");
 }
 
+fn build_command_args(
+    session_name: &String,
+    window_index: &usize,
+    command: &String,
+) -> Vec<String> {
+    vec![
+        String::from("send-keys"),
+        String::from("-t"),
+        format!("{}:{}.0", session_name, window_index),
+        String::from(command),
+        String::from("Enter"),
+    ]
+}
+
 fn run_command(session_name: &String, window_index: &usize, command: &String) {
-    let window_command_args = [
-        "send-keys",
-        "-t",
-        &format!("{}:{}.0", session_name, window_index),
-        &command,
-        "Enter",
-    ];
+    let window_command_args =
+        build_command_args(session_name, window_index, command);
     let _window_command_output = Command::new("tmux")
         .args(&window_command_args)
         .output()
         .expect("Unable to run window command.");
+}
+
+fn build_attach_args(session_name: &String) -> Vec<String> {
+    vec![
+        String::from("-u"),
+        String::from("attach-session"),
+        String::from("-t"),
+        String::from(session_name),
+    ]
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
@@ -82,7 +119,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     // TODO: Move this into helper. First attempt resulted in error caused by
     // return type. I think I either need to return the command and then spawn
     // or return the result of calling spawn.
-    let attach_args = ["-u", "attach-session", "-t", &session_name];
+    let attach_args = build_attach_args(&session_name);
     let _attach_output =
         Command::new("tmux").args(&attach_args).spawn()?.wait();
 
@@ -156,6 +193,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_builds_session_args() {
+        let session_name = String::from("a session");
+        let expected = vec![
+            String::from("new-session"),
+            String::from("-d"),
+            String::from("-s"),
+            String::from(&session_name),
+        ];
+        let actual = build_session_args(&session_name);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_builds_window_layout_args() {
+        // TODO: these are currently hardcoded
+        let session_name = String::from("foo");
+        let index = 2;
+        let expected = vec![
+            String::from("select-layout"),
+            String::from("-t"),
+            format!("{}:{}", &session_name, &index),
+            String::from("tiled"),
+        ];
+        let actual = build_window_layout_args();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn it_builds_window_args() {
         let session_name = String::from("a session");
         let window_name = String::from("a window");
@@ -170,6 +235,35 @@ mod tests {
         ];
         let actual =
             build_create_window_args(&session_name, window_index, &window_name);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_builds_attach_args() {
+        let session_name = String::from("a session");
+        let expected = vec![
+            String::from("-u"),
+            String::from("attach-session"),
+            String::from("-t"),
+            String::from(&session_name),
+        ];
+        let actual = build_attach_args(&session_name);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_builds_command_args() {
+        let session_name = String::from("a session");
+        let window_index = 42;
+        let command = String::from("echo hi");
+        let expected = vec![
+            String::from("send-keys"),
+            String::from("-t"),
+            format!("{}:{}.0", session_name, window_index),
+            String::from(&command),
+            String::from("Enter"),
+        ];
+        let actual = build_command_args(&session_name, &window_index, &command);
         assert_eq!(expected, actual);
     }
 }
