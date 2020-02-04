@@ -45,17 +45,26 @@ fn create_window(create_window_args: Vec<String>) {
         .expect("Unable to run create window command.");
 }
 
-fn build_session_args(session_name: &String) -> Vec<String> {
+fn build_session_args(
+    session_name: &String,
+    window_name: &String,
+) -> Vec<String> {
+    // Pass first window name to new-session, otherwise a default window gets
+    // created that would need to be killed at a later point. I tried doing
+    // this, but saw unexpected behavior -- most likely because the indexes get
+    // shuffled.
     vec![
         String::from("new-session"),
         String::from("-d"),
         String::from("-s"),
         String::from(session_name),
+        String::from("-n"),
+        String::from(window_name),
     ]
 }
 
-fn create_session(session_name: &String) {
-    let create_session_args = build_session_args(&session_name);
+fn create_session(session_name: &String, window_name: &String) {
+    let create_session_args = build_session_args(&session_name, &window_name);
     let _create_session_output = Command::new("tmux")
         .args(&create_session_args)
         .output()
@@ -99,12 +108,25 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
     let session_name = config.name;
 
-    create_session(&session_name);
+    create_session(&session_name, &config.windows[0].name);
 
     for (window_index, window) in config.windows.iter().enumerate() {
-        let create_window_args =
-            build_create_window_args(&session_name, window_index, &window.name);
-        create_window(create_window_args);
+        // The first window is created by create_session because tmux always
+        // creates a window when creating a session.
+        // The alternative would be to create all of the project windows and
+        // then kill the first/default one, but I saw unexpected behavior
+        // (first window's commands not being run) when attempting that -- I
+        // think it's because the indexes get shuffled.
+        // The alternative approach would be preferable, so maybe it's worth
+        // revisiting.
+        if window_index != 0 {
+            let create_window_args = build_create_window_args(
+                &session_name,
+                window_index,
+                &window.name,
+            );
+            create_window(create_window_args);
+        }
 
         for (_, command) in window.commands.iter().enumerate() {
             run_command(&session_name, &window_index, &command);
@@ -195,13 +217,16 @@ mod tests {
     #[test]
     fn it_builds_session_args() {
         let session_name = String::from("a session");
+        let window_name = String::from("a window");
         let expected = vec![
             String::from("new-session"),
             String::from("-d"),
             String::from("-s"),
             String::from(&session_name),
+            String::from("-n"),
+            String::from(&window_name),
         ];
-        let actual = build_session_args(&session_name);
+        let actual = build_session_args(&session_name, &window_name);
         assert_eq!(expected, actual);
     }
 
