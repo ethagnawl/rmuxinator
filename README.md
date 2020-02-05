@@ -19,13 +19,13 @@ features as I can find time. Right now, it's capable of:
 - starting a named tmux session
 - creating windows
 - creating panes
+- run pane commands
 
 Still TODO:
 - handle shell failures -- `tmux kill-window` was failing silently
 - set default cwd for project when creating the session (this is how tmuxinator
 works)
 - set default cwd for window
-- run pane commands
 - set cwd for pane
 - set pane layout
 - set pane name
