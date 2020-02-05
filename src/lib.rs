@@ -6,23 +6,12 @@ use std::process::Command;
 
 extern crate toml;
 
-fn build_pane_args(
-    session_name: &String,
-    window_index: &usize,
-    start_directory: &Option<String>,
-) -> Vec<String> {
-    let mut pane_args = vec![
+fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
+    vec![
         String::from("splitw"),
         String::from("-t"),
         format!("{}:{}", session_name, window_index.to_string()),
-    ];
-
-    if let Some(start_directory) = start_directory {
-        pane_args.push(String::from("-c"));
-        pane_args.push(String::from(start_directory));
-    }
-
-    pane_args
+    ]
 }
 
 fn create_pane(create_pane_args: Vec<String>) {
@@ -161,21 +150,26 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         }
 
         for (pane_index, pane) in window.panes.iter().enumerate() {
+            // Pane 0 is created by default by the containing window
             // TODO: this prevents the start_directory from being set if it's
             // configured for the first pane. We need to determine if we should
             // move the cwd commands into a separate step or move the first
             // pane's command into the window creation command.
             if pane_index > 0 {
-                let pane_args = build_pane_args(
-                    session_name,
-                    &window_index,
-                    &pane.start_directory,
-                );
+                let pane_args = build_pane_args(session_name, &window_index);
                 create_pane(pane_args);
             }
 
-            // TODO build_pane_cwd_command_args
-            // TODO run_pane_command(...)
+            if let Some(start_directory) = &pane.start_directory {
+                let command = format!("cd {}", &start_directory);
+                let pane_command_args = build_pane_command_args(
+                    session_name,
+                    &window_index,
+                    &pane_index,
+                    &command,
+                );
+                run_pane_command(&pane_command_args);
+            }
 
             for (_, command) in pane.commands.iter().enumerate() {
                 let pane_command_args = build_pane_command_args(
@@ -355,45 +349,6 @@ mod tests {
             String::from(&session_name),
         ];
         let actual = build_attach_args(&session_name);
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_builds_pane_args_with_start_directory() {
-        let session_name = String::from("a session");
-        let window_index = 0;
-        let start_directory = String::from("/foo/bar");
-        let maybe_start_directory = Some(start_directory.clone());
-        let expected = vec![
-            String::from("splitw"),
-            String::from("-t"),
-            format!("{}:{}", session_name, window_index),
-            String::from("-c"),
-            String::from(&start_directory),
-        ];
-        let actual = build_pane_args(
-            &session_name,
-            &window_index,
-            &maybe_start_directory,
-        );
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_builds_pane_args_without_start_directory() {
-        let session_name = String::from("a session");
-        let window_index = 0;
-        let maybe_start_directory = None;
-        let expected = vec![
-            String::from("splitw"),
-            String::from("-t"),
-            format!("{}:{}", session_name, window_index),
-        ];
-        let actual = build_pane_args(
-            &session_name,
-            &window_index,
-            &maybe_start_directory,
-        );
         assert_eq!(expected, actual);
     }
 

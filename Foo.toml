@@ -1,6 +1,6 @@
 name = "foo"
 root = "~/projects/rmuxinator"
 windows = [
-           { panes = [{start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-one"]}, {start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-two"]}, {commands = ["echo pane-three"]}, {commands = ["echo hi one", "echo intermediate one", "echo bye one"]}], layout = "tiled", name = "one", root = "/home/peter/projects/rmuxinator"},
+           { panes = [{start_directory = "/home/peter/projects/tmuxinator", commands = ["echo pane-one"]}, {start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-two"]}, {commands = ["echo pane-three"]}, {commands = ["echo hi one", "echo intermediate one", "echo bye one"]}], layout = "tiled", name = "one", root = "/home/peter/projects/rmuxinator"},
     { panes = [{commands = ["echo hi two", "echo bye two"]}], layout = "tiled", name = "two", root = "/home/peter/projects/rmuxinator"}
 ]
