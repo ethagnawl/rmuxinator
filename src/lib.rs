@@ -14,18 +14,33 @@ fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
     ]
 }
 
-fn build_window_layout_args() -> Vec<String> {
-    // TODO: these values should not be hardcoded
+fn create_pane(create_pane_args: Vec<String>) {
+    let _create_window_command_output = Command::new("tmux")
+        .args(&create_pane_args)
+        .output()
+        .expect("Unable to run create pane command.");
+}
+
+fn build_window_layout_args(
+    session_name: &String,
+    window_index: &usize,
+    layout: &Layout,
+) -> Vec<String> {
     vec![
         String::from("select-layout"),
         String::from("-t"),
-        String::from("foo:2"),
-        String::from("tiled"),
+        format!("{}:{}", session_name, window_index.to_string()),
+        String::from(layout.to_string()),
     ]
 }
 
-fn set_window_layout(_window_index: usize, _layout: &Layout) {
-    let set_window_layout_args = build_window_layout_args();
+fn set_window_layout(
+    session_name: &String,
+    window_index: &usize,
+    layout: &Layout,
+) {
+    let set_window_layout_args =
+        build_window_layout_args(session_name, window_index, layout);
     let _set_window_layout_output = Command::new("tmux")
         .args(&set_window_layout_args)
         .output()
@@ -79,28 +94,27 @@ fn create_session(session_name: &String, window_name: &String) {
         .expect("Unable to create session.");
 }
 
-// fn build_command_args(
-//     session_name: &String,
-//     window_index: &usize,
-//     command: &String,
-// ) -> Vec<String> {
-//     vec![
-//         String::from("send-keys"),
-//         String::from("-t"),
-//         format!("{}:{}.0", session_name, window_index),
-//         String::from(command),
-//         String::from("Enter"),
-//     ]
-// }
+fn build_pane_command_args(
+    session_name: &String,
+    window_index: &usize,
+    pane_index: &usize,
+    command: &String,
+) -> Vec<String> {
+    vec![
+        String::from("send-keys"),
+        String::from("-t"),
+        format!("{}:{}.{}", session_name, window_index, pane_index),
+        String::from(command),
+        String::from("Enter"),
+    ]
+}
 
-// fn run_command(session_name: &String, window_index: &usize, command: &String) {
-//     let window_command_args =
-//         build_command_args(session_name, window_index, command);
-//     let _window_command_output = Command::new("tmux")
-//         .args(&window_command_args)
-//         .output()
-//         .expect("Unable to run window command.");
-// }
+fn run_pane_command(pane_command_args: &Vec<String>) {
+    Command::new("tmux")
+        .args(pane_command_args)
+        .output()
+        .expect("Unable to run pane command.");
+}
 
 fn build_attach_args(session_name: &String) -> Vec<String> {
     vec![
@@ -112,11 +126,9 @@ fn build_attach_args(session_name: &String) -> Vec<String> {
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    println!("Config: {:#?}", config);
+    let session_name = &config.name;
 
-    let session_name = config.name;
-
-    create_session(&session_name, &config.windows[0].name);
+    create_session(session_name, &config.windows[0].name);
 
     for (window_index, window) in config.windows.iter().enumerate() {
         // The first window is created by create_session because tmux always
@@ -129,27 +141,35 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         // revisiting.
         if window_index != 0 {
             let create_window_args = build_create_window_args(
-                &session_name,
+                session_name,
                 window_index,
                 &window.name,
             );
             create_window(create_window_args);
         }
 
-        for (_, _pane) in window.panes.iter().enumerate() {
-            let pane_args = build_pane_args(&session_name, &window_index);
+        for (pane_index, pane) in window.panes.iter().enumerate() {
+            if pane_index > 0 {
+                let pane_args = build_pane_args(session_name, &window_index);
+                create_pane(pane_args);
+            }
 
-            // create_pane();
-            Command::new("tmux")
-                .args(&pane_args)
-                .output()
-                .expect("Unable to create pane.");
+            for (_, command) in pane.commands.iter().enumerate() {
+                let pane_command_args = build_pane_command_args(
+                    session_name,
+                    &window_index,
+                    &pane_index,
+                    command,
+                );
 
-            // run_pane_commands(&session_name, &window_index, &command);
+                run_pane_command(&pane_command_args);
+            }
         }
 
         match &window.layout {
-            Some(layout) => set_window_layout(window_index, layout),
+            Some(layout) => {
+                set_window_layout(session_name, &window_index, layout)
+            }
             None => (),
         }
     }
@@ -188,6 +208,18 @@ pub enum Layout {
     MainHorizontal,
     MainVertical,
     Tiled,
+}
+
+impl Layout {
+    fn to_string(&self) -> String {
+        match self {
+            Layout::EvenHorizontal => String::from("even-horizontal"),
+            Layout::EvenVertical => String::from("even-vertical"),
+            Layout::MainHorizontal => String::from("main-horizontal"),
+            Layout::MainVertical => String::from("main-vertical"),
+            Layout::Tiled => String::from("tiled"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -253,16 +285,17 @@ mod tests {
 
     #[test]
     fn it_builds_window_layout_args() {
-        // TODO: these are currently hardcoded
         let session_name = String::from("foo");
-        let index = 2;
+        let window_index = 2;
+        let layout = Layout::Tiled;
         let expected = vec![
             String::from("select-layout"),
             String::from("-t"),
-            format!("{}:{}", &session_name, &index),
-            String::from("tiled"),
+            format!("{}:{}", &session_name, &window_index),
+            layout.to_string(),
         ];
-        let actual = build_window_layout_args();
+        let actual =
+            build_window_layout_args(&session_name, &window_index, &layout);
         assert_eq!(expected, actual);
     }
 
@@ -297,22 +330,6 @@ mod tests {
         assert_eq!(expected, actual);
     }
 
-    // #[test]
-    // fn it_builds_command_args() {
-    //     let session_name = String::from("a session");
-    //     let window_index = 42;
-    //     let command = String::from("echo hi");
-    //     let expected = vec![
-    //         String::from("send-keys"),
-    //         String::from("-t"),
-    //         format!("{}:{}.0", session_name, window_index),
-    //         String::from(&command),
-    //         String::from("Enter"),
-    //     ];
-    //     let actual = build_command_args(&session_name, &window_index, &command);
-    //     assert_eq!(expected, actual);
-    // }
-
     #[test]
     fn it_builds_pane_args() {
         let session_name = String::from("a session");
@@ -323,6 +340,14 @@ mod tests {
             format!("{}:{}", session_name, window_index),
         ];
         let actual = build_pane_args(&session_name, &window_index);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_converts_layout_to_string() {
+        let layout = Layout::Tiled;
+        let expected = layout.to_string();
+        let actual = String::from("tiled");
         assert_eq!(expected, actual);
     }
 }
