@@ -203,21 +203,26 @@ impl CliArgs {
 
 #[derive(Debug, Deserialize)]
 pub enum Layout {
+    #[serde(rename = "even-horizontal")]
     EvenHorizontal,
+    #[serde(rename = "even-vertical")]
     EvenVertical,
+    #[serde(rename = "main-horizontal")]
     MainHorizontal,
+    #[serde(rename = "main-vertical")]
     MainVertical,
+    #[serde(rename = "tiled")]
     Tiled,
 }
 
 impl Layout {
     fn to_string(&self) -> String {
         match self {
-            Layout::EvenHorizontal => String::from("even-horizontal"),
-            Layout::EvenVertical => String::from("even-vertical"),
-            Layout::MainHorizontal => String::from("main-horizontal"),
-            Layout::MainVertical => String::from("main-vertical"),
-            Layout::Tiled => String::from("tiled"),
+            Self::EvenHorizontal => String::from("even-horizontal"),
+            Self::EvenVertical => String::from("even-vertical"),
+            Self::MainHorizontal => String::from("main-horizontal"),
+            Self::MainVertical => String::from("main-vertical"),
+            Self::Tiled => String::from("tiled"),
         }
     }
 }

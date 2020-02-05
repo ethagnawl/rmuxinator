@@ -1,5 +1,0 @@
-name = "bar"
-root = "~/projects/rmuxinator"
-windows = [
-   { name = "one", root = "/home/peter/projects/rmuxinator", commands = ["echo hi", "echo bye"] }
-]
