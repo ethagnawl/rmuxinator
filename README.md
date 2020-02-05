@@ -25,6 +25,7 @@ Still TODO:
 - handle shell failures -- `tmux kill-window` was failing silently
 - set default cwd for project when creating the session (this is how tmuxinator
 works)
+- set cwd for project
 - set default cwd for window
 - set cwd for pane
 - set pane name
