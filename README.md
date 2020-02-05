@@ -27,7 +27,8 @@ Still TODO:
 works)
 - set default cwd for window
 - set cwd for pane
-- set pane layout
 - set pane name
+- use tmux style layout names in config -- will need to create Layout
+constructor and either error on unexpected value or use default
 - separate tmux arg construction and shell calls. the args can all be moved
-into structs and computed up front
+into structs and computed up front.
