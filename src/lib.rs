@@ -151,15 +151,14 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
         for (pane_index, pane) in window.panes.iter().enumerate() {
             // Pane 0 is created by default by the containing window
-            // TODO: this prevents the start_directory from being set if it's
-            // configured for the first pane. We need to determine if we should
-            // move the cwd commands into a separate step or move the first
-            // pane's command into the window creation command.
             if pane_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
                 create_pane(pane_args);
             }
 
+            // Conditionally set start_directory for pane.
+            // Unfortunately, this can't be done cleanly using create_pane
+            // because pane 0 is created implicitly.
             if let Some(start_directory) = &pane.start_directory {
                 let command = format!("cd {}", &start_directory);
                 let pane_command_args = build_pane_command_args(
