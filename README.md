@@ -26,6 +26,7 @@ features as I can find time. Right now, it's capable of:
 
 Still TODO:
 - window layout helper
+- integration tests which verify compound/derived values (e.g. start_directory)
 - integration tests which verify calls to tmux?
 - handle shell failures -- `tmux kill-window` was failing silently
 - set pane name using `tmux set-option -g 'pane-border-format' foo`
