@@ -20,13 +20,13 @@ features as I can find time. Right now, it's capable of:
 - creating windows
 - creating panes
 - run pane commands
-- set cwd for pane
 
 Still TODO:
 - handle shell failures -- `tmux kill-window` was failing silently
-- set default cwd for project when creating the session (this is how tmuxinator
+- set cwd for pane using pane or root || window (i think this already works, but it needs to be verified)
+- set default cwd for project using root or first window when creating the session (this is how tmuxinator
 works)
-- set default cwd for window
+- set default cwd for window using either root or window
 - set pane name using `tmux set-option -g 'pane-border-format' foo`
 - separate tmux arg construction and shell calls. the args can all be moved
 into structs and computed up front.

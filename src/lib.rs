@@ -51,14 +51,22 @@ fn build_create_window_args(
     session_name: &String,
     window_index: usize,
     window_name: &String,
+    start_directory: &Option<String>,
 ) -> Vec<String> {
-    vec![
+    let mut create_window_args = vec![
         String::from("new-window"),
         String::from("-t"),
         format!("{}:{}", session_name, window_index.to_string()),
         String::from("-n"),
         String::from(window_name),
-    ]
+    ];
+
+    if let Some(start_directory_) = start_directory {
+        create_window_args.push(String::from("-c"));
+        create_window_args.push(String::from(start_directory_));
+    }
+
+    create_window_args
 }
 
 fn create_window(create_window_args: Vec<String>) {
@@ -72,6 +80,7 @@ fn build_session_args(
     session_name: &String,
     window_name: &String,
 ) -> Vec<String> {
+    // TODO: conditionally append start_directory
     // Pass first window name to new-session, otherwise a default window gets
     // created that would need to be killed at a later point. I tried doing
     // this, but saw unexpected behavior -- most likely because the indexes get
@@ -124,8 +133,27 @@ fn build_attach_args(session_name: &String) -> Vec<String> {
     ]
 }
 
+fn build_default_start_directory(config: &Config) -> StartDirectory {
+    // Compute start_directory for first window using:
+    // config.start_directory || window.start_directory
+
+    let mut start_directory = None;
+    if let Some(start_directory_) = config.start_directory.clone() {
+        start_directory = Some(start_directory_);
+    }
+    if config.windows.len() > 0 {
+        if let Some(start_directory_) = &config.windows[0].start_directory {
+            start_directory = Some(String::from(start_directory_));
+        }
+    }
+    start_directory
+}
+
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let session_name = &config.name;
+
+    // TODO: use conditionally
+    let _start_directory = build_default_start_directory(&config);
 
     let create_session_args =
         build_session_args(session_name, &config.windows[0].name);
@@ -145,6 +173,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 session_name,
                 window_index,
                 &window.name,
+                &window.start_directory,
             );
             create_window(create_window_args);
         }
@@ -242,10 +271,12 @@ impl Layout {
     }
 }
 
+type StartDirectory = Option<String>;
+
 #[derive(Debug, Deserialize)]
 pub struct Pane {
     pub commands: Vec<String>,
-    pub start_directory: Option<String>,
+    pub start_directory: StartDirectory,
 }
 
 #[derive(Debug, Deserialize)]
@@ -253,13 +284,13 @@ pub struct Window {
     pub layout: Option<Layout>,
     pub name: String,
     pub panes: Vec<Pane>,
-    pub root: String,
+    pub start_directory: StartDirectory,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub name: String,
-    pub root: String,
+    pub start_directory: StartDirectory,
     pub windows: Vec<Window>,
 }
 
@@ -321,11 +352,11 @@ mod tests {
     }
 
     #[test]
-    fn it_builds_window_args() {
+    fn it_builds_window_args_without_a_start_directory() {
         let session_name = String::from("a session");
         let window_name = String::from("a window");
         let window_index = 42;
-
+        let start_directory = None;
         let expected = vec![
             String::from("new-window"),
             String::from("-t"),
@@ -333,8 +364,37 @@ mod tests {
             String::from("-n"),
             String::from(&window_name),
         ];
-        let actual =
-            build_create_window_args(&session_name, window_index, &window_name);
+        let actual = build_create_window_args(
+            &session_name,
+            window_index,
+            &window_name,
+            &start_directory,
+        );
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_builds_window_args_with_a_start_directory() {
+        let session_name = String::from("a session");
+        let window_name = String::from("a window");
+        let window_index = 42;
+        let start_directory = Some(String::from("/tmp/neat"));
+
+        let expected = vec![
+            String::from("new-window"),
+            String::from("-t"),
+            format!("{}:{}", &session_name, &window_index),
+            String::from("-n"),
+            String::from(&window_name),
+            String::from("-c"),
+            String::from("/tmp/neat"),
+        ];
+        let actual = build_create_window_args(
+            &session_name,
+            window_index,
+            &window_name,
+            &start_directory,
+        );
         assert_eq!(expected, actual);
     }
 
@@ -356,6 +416,36 @@ mod tests {
         let layout = Layout::Tiled;
         let expected = layout.to_string();
         let actual = String::from("tiled");
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_uses_the_project_start_directory_when_present() {
+        let config = Config {
+            name: String::from("foo"),
+            start_directory: Some(String::from("/foo/bar")),
+            windows: Vec::new(),
+        };
+        let expected = Some(String::from("/foo/bar"));
+        let actual = build_default_start_directory(&config);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_uses_the_first_windows_start_directory_when_window_start_directory_not_present(
+    ) {
+        let config = Config {
+            name: String::from("foo"),
+            start_directory: None,
+            windows: vec![Window {
+                layout: None,
+                name: String::from("a window"),
+                panes: Vec::new(),
+                start_directory: Some(String::from("/bar/baz")),
+            }],
+        };
+        let expected = Some(String::from("/bar/baz"));
+        let actual = build_default_start_directory(&config);
         assert_eq!(expected, actual);
     }
 }

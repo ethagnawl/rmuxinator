@@ -1,6 +1,7 @@
 name = "foo"
-root = "~/projects/rmuxinator"
+start_directory = "~/projects/VF-H-25-POC"
 windows = [
-           { panes = [{start_directory = "/home/peter/projects/tmuxinator", commands = ["echo pane-one"]}, {start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-two"]}, {commands = ["echo pane-three"]}, {commands = ["echo hi one", "echo intermediate one", "echo bye one"]}], layout = "tiled", name = "one", root = "/home/peter/projects/rmuxinator"},
-    { panes = [{commands = ["echo hi two", "echo bye two"]}], layout = "tiled", name = "two", root = "/home/peter/projects/rmuxinator"}
+  {start_directory = "qux", panes = [{start_directory = "/home/peter/projects/tmuxinator", commands = ["echo pane-one"]}, {start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-two"]}, {commands = ["echo pane-three"]}, {commands = ["echo hi one", "echo intermediate one", "echo bye one"]}], layout = "tiled", name = "one", root = "/home/peter/projects/rmuxinator"},
+  {start_directory = "/home/peter/projects/vim", panes = [{commands = ["echo hi two", "echo bye two"]}], layout = "tiled", name = "two", root = "/home/peter/projects/rmuxinator"},
+  {start_directory = "/home/peter/projects/youtube-alb-admin", panes = [{commands = ["echo hi two", "echo bye two"]}], layout = "tiled", name = "two", root = "/home/peter/projects/rmuxinator"}
 ]
