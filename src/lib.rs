@@ -432,7 +432,7 @@ mod tests {
     }
 
     #[test]
-    fn it_uses_the_first_windows_start_directory_when_window_start_directory_not_present(
+    fn it_uses_the_first_windows_start_directory_when_project_start_directory_not_present(
     ) {
         let config = Config {
             name: String::from("foo"),
