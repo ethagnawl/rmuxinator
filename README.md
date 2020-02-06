@@ -17,17 +17,21 @@ This project is currently just a proof of concept and I'll be duplicating
 features as I can find time. Right now, it's capable of:
 - parsing a TOML project config file
 - starting a named tmux session
+- setting the default cwd
 - creating windows
+- setting cwd for windows
 - creating panes
-- run pane commands
+- setting cwd for panes
+- running pane commands
 
 Still TODO:
+- window layout helper
+- integration tests which verify calls to tmux?
 - handle shell failures -- `tmux kill-window` was failing silently
-- set cwd for pane using pane or root || window (i think this already works, but it needs to be verified)
-- set default cwd for project using root or first window when creating the session (this is how tmuxinator
-works)
-- set default cwd for window using either root or window
 - set pane name using `tmux set-option -g 'pane-border-format' foo`
 - separate tmux arg construction and shell calls. the args can all be moved
 into structs and computed up front.
 - better handling of parse errors (prettier error messages)
+- hooks
+- project layout
+- select window on attach

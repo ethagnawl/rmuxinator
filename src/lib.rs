@@ -79,20 +79,27 @@ fn create_window(create_window_args: Vec<String>) {
 fn build_session_args(
     session_name: &String,
     window_name: &String,
+    start_directory: &StartDirectory,
 ) -> Vec<String> {
-    // TODO: conditionally append start_directory
     // Pass first window name to new-session, otherwise a default window gets
     // created that would need to be killed at a later point. I tried doing
     // this, but saw unexpected behavior -- most likely because the indexes get
     // shuffled.
-    vec![
+    let mut session_args = vec![
         String::from("new-session"),
         String::from("-d"),
         String::from("-s"),
         String::from(session_name),
         String::from("-n"),
         String::from(window_name),
-    ]
+    ];
+
+    if let Some(start_directory_) = start_directory {
+        session_args.push(String::from("-c"));
+        session_args.push(String::from(start_directory_));
+    }
+
+    session_args
 }
 
 fn create_session(create_session_args: Vec<String>) {
@@ -149,14 +156,33 @@ fn build_default_start_directory(config: &Config) -> StartDirectory {
     start_directory
 }
 
+fn build_window_start_directory(
+    default: &StartDirectory,
+    override_: &StartDirectory,
+) -> StartDirectory {
+    // Compute start_directory for first window using:
+    // config.start_directory || window.start_directory
+
+    let mut start_directory = None;
+    if let Some(start_directory_) = default.clone() {
+        start_directory = Some(start_directory_);
+    }
+    if let Some(start_directory_) = override_.clone() {
+        start_directory = Some(start_directory_);
+    }
+    start_directory
+}
+
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let session_name = &config.name;
 
-    // TODO: use conditionally
-    let _start_directory = build_default_start_directory(&config);
+    let start_directory = build_default_start_directory(&config);
 
-    let create_session_args =
-        build_session_args(session_name, &config.windows[0].name);
+    let create_session_args = build_session_args(
+        session_name,
+        &config.windows[0].name,
+        &start_directory,
+    );
     create_session(create_session_args);
 
     for (window_index, window) in config.windows.iter().enumerate() {
@@ -166,14 +192,21 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         // then kill the first/default one, but I saw unexpected behavior
         // (first window's commands not being run) when attempting that -- I
         // think it's because the indexes get shuffled.
-        // The alternative approach would be preferable, so maybe it's worth
-        // revisiting.
+        // The alternative approach would be more explicit and preferable, so
+        // maybe it's worth revisiting.
         if window_index != 0 {
+            // TODO: This is heavy handed and this logic is sort of duplicated
+            // in many places. Maybe each type should have a method which is
+            // able to compute its own starting directory.
+            let window_start_directory = build_window_start_directory(
+                &config.start_directory,
+                &window.start_directory,
+            );
             let create_window_args = build_create_window_args(
                 session_name,
                 window_index,
                 &window.name,
-                &window.start_directory,
+                &window_start_directory,
             );
             create_window(create_window_args);
         }
@@ -210,6 +243,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             }
         }
 
+        // TODO: move into helper
         match &window.layout {
             Some(layout) => {
                 set_window_layout(session_name, &window_index, layout)
@@ -320,9 +354,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_builds_session_args() {
+    fn it_builds_session_args_without_start_directory() {
         let session_name = String::from("a session");
         let window_name = String::from("a window");
+        let start_directory = None;
         let expected = vec![
             String::from("new-session"),
             String::from("-d"),
@@ -331,7 +366,29 @@ mod tests {
             String::from("-n"),
             String::from(&window_name),
         ];
-        let actual = build_session_args(&session_name, &window_name);
+        let actual =
+            build_session_args(&session_name, &window_name, &start_directory);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_builds_session_args_with_start_directory() {
+        let session_name = String::from("a session");
+        let window_name = String::from("a window");
+        let start_directory_ = String::from("/foo/bar");
+        let start_directory = Some(start_directory_.clone());
+        let expected = vec![
+            String::from("new-session"),
+            String::from("-d"),
+            String::from("-s"),
+            String::from(&session_name),
+            String::from("-n"),
+            String::from(&window_name),
+            String::from("-c"),
+            String::from(&start_directory_),
+        ];
+        let actual =
+            build_session_args(&session_name, &window_name, &start_directory);
         assert_eq!(expected, actual);
     }
 
