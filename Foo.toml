@@ -1,7 +1,7 @@
 name = "foo"
 start_directory = "/home/peter/projects/VF-H-25-POC"
 windows = [
-  {start_directory = "/home/peter/projects/default-bleh", panes = [{commands = ["echo pane-one"]}, {start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-two"]}, {commands = ["echo pane-three"]}, {commands = ["echo hi one", "echo intermediate one", "echo bye one"]}], layout = "tiled", name = "one"},
-  {start_directory = "/home/peter/projects/vim", panes = [{commands = ["echo oy"]}, {start_directory = "/home/peter/Documents", commands = ["echo hi two", "echo bye two"]}], layout = "tiled", name = "two"},
-  {panes = [{commands = ["echo hi three", "echo bye three"]}], name = "three"}
+  {start_directory = "/home/peter/projects/default-bleh", panes = [{name = "killer", commands = ["echo pane-one"]}, {name = "boots", start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-two"]}, {name = "man", commands = ["echo pane-three"]}, {commands = ["echo hi one", "echo intermediate one", "echo bye one"]}], layout = "tiled", name = "one"}
+  #{start_directory = "/home/peter/projects/vim", panes = [{commands = ["echo oy"]}, {start_directory = "/home/peter/Documents", commands = ["echo hi two", "echo bye two"]}], layout = "tiled", name = "two"},
+  #{panes = [{commands = ["echo hi three", "echo bye three"]}], name = "three"}
 ]

@@ -241,6 +241,23 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 );
                 run_pane_command(&pane_command_args);
             }
+
+            // TODO: The following is too flaky. automatic-rename-off doesn't
+            // seem to apply to panes. So, setting the title _works_ but it's
+            // subject to change when the user does anything inside of the
+            // pane.
+            // if let Some(pane_name) = pane.name.clone() {
+            //     // requires:
+            //     // `tmux setw -g pane-border-format "#{pane_index}:#{pane_title}"`
+            //     let rename_pane_args = vec![
+            //         String::from("select-pane"),
+            //         String::from("-t"),
+            //         format!("{}:{}.{}", session_name, window_index, pane_index),
+            //         String::from("-T"),
+            //         String::from(pane_name),
+            //     ];
+            //     run_pane_command(&rename_pane_args);
+            // }
         }
 
         // TODO: move into helper
@@ -310,6 +327,8 @@ type StartDirectory = Option<String>;
 #[derive(Debug, Deserialize)]
 pub struct Pane {
     pub commands: Vec<String>,
+    // TODO: figure out a way to make this work consistently.
+    // pub name: Option<String>,
     pub start_directory: StartDirectory,
 }
 
