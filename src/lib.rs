@@ -140,7 +140,7 @@ fn build_attach_args(session_name: &String) -> Vec<String> {
     ]
 }
 
-fn build_default_start_directory(config: &Config) -> StartDirectory {
+fn build_session_start_directory(config: &Config) -> StartDirectory {
     // Compute start_directory for first window using:
     // window.start_directory || config.start_directory
     if config.windows.len() > 0 {
@@ -151,31 +151,23 @@ fn build_default_start_directory(config: &Config) -> StartDirectory {
 }
 
 fn build_window_start_directory(
-    default: &StartDirectory,
-    override_: &StartDirectory,
+    config_start_directory: &StartDirectory,
+    window_start_directory: &StartDirectory,
 ) -> StartDirectory {
-    // Compute start_directory for first window using:
-    // config.start_directory || window.start_directory
-
-    let mut start_directory = None;
-    if let Some(start_directory_) = default.clone() {
-        start_directory = Some(start_directory_);
-    }
-    if let Some(start_directory_) = override_.clone() {
-        start_directory = Some(start_directory_);
-    }
-    start_directory
+    let config_start_directory_ = config_start_directory.clone();
+    let window_start_directory_ = window_start_directory.clone();
+    window_start_directory_.or(config_start_directory_)
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let session_name = &config.name;
 
-    let start_directory = build_default_start_directory(&config);
+    let session_start_directory = build_session_start_directory(&config);
 
     let create_session_args = build_session_args(
         session_name,
         &config.windows[0].name,
-        &start_directory,
+        &session_start_directory,
     );
     create_session(create_session_args);
 
@@ -189,9 +181,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         // The alternative approach would be more explicit and preferable, so
         // maybe it's worth revisiting.
         if window_index != 0 {
-            // TODO: This is heavy handed and this logic is sort of duplicated
-            // in many places. Maybe each type should have a method which is
-            // able to compute its own starting directory.
+            // TODO: This is heavy handed and this logic is _sort of_ duped
+            // in a few places. Maybe each type should have a method which is
+            // able to compute its own starting directory?
             let window_start_directory = build_window_start_directory(
                 &config.start_directory,
                 &window.start_directory,
@@ -492,7 +484,8 @@ mod tests {
     }
 
     #[test]
-    fn it_uses_no_start_directory_when_none_present() {
+    fn it_uses_no_start_directory_when_none_present_for_session_start_directory(
+    ) {
         let config = Config {
             name: String::from("foo"),
             start_directory: None,
@@ -505,24 +498,25 @@ mod tests {
         };
 
         let expected = None;
-        let actual = build_default_start_directory(&config);
+        let actual = build_session_start_directory(&config);
         assert_eq!(expected, actual);
     }
 
     #[test]
-    fn it_uses_the_project_start_directory_when_present() {
+    fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_session_start_directory(
+    ) {
         let config = Config {
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
             windows: Vec::new(),
         };
         let expected = Some(String::from("/foo/bar"));
-        let actual = build_default_start_directory(&config);
+        let actual = build_session_start_directory(&config);
         assert_eq!(expected, actual);
     }
 
     #[test]
-    fn it_uses_the_first_windows_start_directory_when_project_start_directory_not_present(
+    fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory(
     ) {
         let config = Config {
             name: String::from("foo"),
@@ -535,7 +529,70 @@ mod tests {
             }],
         };
         let expected = Some(String::from("/bar/baz"));
-        let actual = build_default_start_directory(&config);
+        let actual = build_session_start_directory(&config);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_uses_no_start_directory_when_none_present_for_window_start_directory()
+    {
+        let config = Config {
+            name: String::from("foo"),
+            start_directory: None,
+            windows: vec![Window {
+                layout: None,
+                name: String::from("a window"),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+        };
+        let expected = None;
+        let actual = build_window_start_directory(
+            &config.start_directory,
+            &config.windows[0].start_directory,
+        );
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_uses_windows_start_directory_over_configs_start_directory_for_window_start_directory(
+    ) {
+        let config = Config {
+            name: String::from("foo"),
+            start_directory: Some(String::from("/this/is/ignored")),
+            windows: vec![Window {
+                layout: None,
+                name: String::from("a window"),
+                panes: Vec::new(),
+                start_directory: Some(String::from("/bar/baz")),
+            }],
+        };
+        let expected = Some(String::from("/bar/baz"));
+        let actual = build_window_start_directory(
+            &config.start_directory,
+            &config.windows[0].start_directory,
+        );
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_window_start_directory(
+    ) {
+        let config = Config {
+            name: String::from("foo"),
+            start_directory: Some(String::from("/foo/bar")),
+            windows: vec![Window {
+                layout: None,
+                name: String::from("a window"),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+        };
+        let expected = Some(String::from("/foo/bar"));
+        let actual = build_window_start_directory(
+            &config.start_directory,
+            &config.windows[0].start_directory,
+        );
         assert_eq!(expected, actual);
     }
 }
