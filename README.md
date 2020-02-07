@@ -34,8 +34,8 @@ Still TODO:
 - integration tests which verify compound/derived values (e.g. start_directory)
 - integration tests which verify calls to tmux?
 - handle shell failures -- `tmux kill-window` was failing silently
-- separate tmux arg construction and shell calls. the args can all be moved
-into structs and computed up front.
+- Separate tmux arg construction and shell calls. the args can all be moved
+into structs and computed up front. (This might require writing a custom serde deserializer for the Config type)
 - better handling of parse errors (prettier error messages)
 - hooks
 - project layout
