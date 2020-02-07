@@ -22,6 +22,8 @@ features as I can find time. Right now, it's capable of:
 - setting cwd for windows
 - creating panes
 - setting cwd for panes
+- set pane title using user option (requires >= tmux 3.0a and related
+pane-border-format)
 - running pane commands
 
 Still TODO:
@@ -29,7 +31,6 @@ Still TODO:
 - integration tests which verify compound/derived values (e.g. start_directory)
 - integration tests which verify calls to tmux?
 - handle shell failures -- `tmux kill-window` was failing silently
-- set pane name using `tmux set-option -g 'pane-border-format' foo`
 - separate tmux arg construction and shell calls. the args can all be moved
 into structs and computed up front.
 - better handling of parse errors (prettier error messages)

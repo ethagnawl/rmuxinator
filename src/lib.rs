@@ -142,18 +142,12 @@ fn build_attach_args(session_name: &String) -> Vec<String> {
 
 fn build_default_start_directory(config: &Config) -> StartDirectory {
     // Compute start_directory for first window using:
-    // config.start_directory || window.start_directory
-
-    let mut start_directory = None;
-    if let Some(start_directory_) = config.start_directory.clone() {
-        start_directory = Some(start_directory_);
-    }
+    // window.start_directory || config.start_directory
     if config.windows.len() > 0 {
-        if let Some(start_directory_) = &config.windows[0].start_directory {
-            start_directory = Some(String::from(start_directory_));
-        }
+        config.windows[0].start_directory.clone()
+    } else {
+        config.start_directory.clone()
     }
-    start_directory
 }
 
 fn build_window_start_directory(
@@ -242,22 +236,24 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 run_pane_command(&pane_command_args);
             }
 
-            // TODO: The following is too flaky. automatic-rename-off doesn't
-            // seem to apply to panes. So, setting the title _works_ but it's
-            // subject to change when the user does anything inside of the
-            // pane.
-            // if let Some(pane_name) = pane.name.clone() {
-            //     // requires:
-            //     // `tmux setw -g pane-border-format "#{pane_index}:#{pane_title}"`
-            //     let rename_pane_args = vec![
-            //         String::from("select-pane"),
-            //         String::from("-t"),
-            //         format!("{}:{}.{}", session_name, window_index, pane_index),
-            //         String::from("-T"),
-            //         String::from(pane_name),
-            //     ];
-            //     run_pane_command(&rename_pane_args);
-            // }
+            // requires tmux >= 3.0a and some variation of the following in
+            // tmux.conf:
+            // set -g pane-border-format "#{@mytitle}"
+            // TODO: consider setting pane-border-format user option to
+            // something unique and dynamic to prevent collisions
+            // TODO: sniff out user option support
+            // TODO: make user option configurable
+            if let Some(pane_name) = pane.name.clone() {
+                let rename_pane_args = vec![
+                    String::from("set-option"),
+                    String::from("-p"),
+                    String::from("-t"),
+                    format!("{}:{}.{}", session_name, window_index, pane_index),
+                    String::from("@mytitle"),
+                    String::from(pane_name),
+                ];
+                run_pane_command(&rename_pane_args);
+            }
         }
 
         // TODO: move into helper
@@ -328,7 +324,7 @@ type StartDirectory = Option<String>;
 pub struct Pane {
     pub commands: Vec<String>,
     // TODO: figure out a way to make this work consistently.
-    // pub name: Option<String>,
+    pub name: Option<String>,
     pub start_directory: StartDirectory,
 }
 
@@ -496,6 +492,24 @@ mod tests {
     }
 
     #[test]
+    fn it_uses_no_start_directory_when_none_present() {
+        let config = Config {
+            name: String::from("foo"),
+            start_directory: None,
+            windows: vec![Window {
+                layout: None,
+                name: String::from("a window"),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+        };
+
+        let expected = None;
+        let actual = build_default_start_directory(&config);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn it_uses_the_project_start_directory_when_present() {
         let config = Config {
             name: String::from("foo"),
@@ -512,7 +526,7 @@ mod tests {
     ) {
         let config = Config {
             name: String::from("foo"),
-            start_directory: None,
+            start_directory: Some(String::from("/this/is/ignored")),
             windows: vec![Window {
                 layout: None,
                 name: String::from("a window"),
