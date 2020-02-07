@@ -24,27 +24,28 @@ fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
 fn build_window_layout_args(
     session_name: &String,
     window_index: &usize,
-    layout: &Layout,
-) -> Vec<String> {
-    vec![
-        String::from("select-layout"),
-        String::from("-t"),
-        format!("{}:{}", session_name, window_index.to_string()),
-        String::from(layout.to_string()),
-    ]
+    layout: &Option<Layout>,
+) -> Option<Vec<String>> {
+    if let Some(layout) = layout {
+        Some(vec![
+            String::from("select-layout"),
+            String::from("-t"),
+            format!("{}:{}", session_name, window_index.to_string()),
+            String::from(layout.to_string()),
+        ])
+    } else {
+        None
+    }
 }
 
-fn set_window_layout(
-    session_name: &String,
-    window_index: &usize,
-    layout: &Layout,
-) {
-    let set_window_layout_args =
-        build_window_layout_args(session_name, window_index, layout);
-    let _set_window_layout_output = Command::new("tmux")
-        .args(&set_window_layout_args)
-        .output()
-        .expect("Unable to set window layout.");
+fn set_window_layout(window_layout_args: Option<Vec<String>>) {
+    if window_layout_args.is_some() {
+        let args = window_layout_args.unwrap();
+        Command::new("tmux")
+            .args(&args)
+            .output()
+            .expect("Unable to set window layout.");
+    }
 }
 
 fn build_create_window_args(
@@ -231,17 +232,17 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                     String::from("@mytitle"),
                     String::from(pane_name),
                 ];
-                run_pane_command(&rename_pane_args);
+                let error_message = String::from("Unable to run pane command.");
+                run_tmux_command(&rename_pane_args, &error_message);
             }
         }
 
-        // TODO: move into helper
-        match &window.layout {
-            Some(layout) => {
-                set_window_layout(session_name, &window_index, layout)
-            }
-            None => (),
-        }
+        let window_layout_args = build_window_layout_args(
+            session_name,
+            &window_index,
+            &window.layout,
+        );
+        set_window_layout(window_layout_args)
     }
 
     // TODO: Move this into helper. First attempt resulted in error caused by
@@ -390,16 +391,16 @@ mod tests {
     fn it_builds_window_layout_args() {
         let session_name = String::from("foo");
         let window_index = 2;
-        let layout = Layout::Tiled;
+        let layout = Some(Layout::Tiled);
         let expected = vec![
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
-            layout.to_string(),
+            String::from("tiled"), // <~~ TODO: LAZY
         ];
         let actual =
             build_window_layout_args(&session_name, &window_index, &layout);
-        assert_eq!(expected, actual);
+        assert_eq!(expected, actual.unwrap());
     }
 
     #[test]
