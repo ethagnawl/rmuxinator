@@ -6,19 +6,19 @@ use std::process::Command;
 
 extern crate toml;
 
+fn run_tmux_command(command: &Vec<String>, error_message: &String) {
+    Command::new("tmux")
+        .args(command)
+        .output()
+        .expect(error_message);
+}
+
 fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
     vec![
         String::from("splitw"),
         String::from("-t"),
         format!("{}:{}", session_name, window_index.to_string()),
     ]
-}
-
-fn create_pane(create_pane_args: Vec<String>) {
-    let _create_window_command_output = Command::new("tmux")
-        .args(&create_pane_args)
-        .output()
-        .expect("Unable to run create pane command.");
 }
 
 fn build_window_layout_args(
@@ -69,13 +69,6 @@ fn build_create_window_args(
     create_window_args
 }
 
-fn create_window(create_window_args: Vec<String>) {
-    let _create_window_command_output = Command::new("tmux")
-        .args(&create_window_args)
-        .output()
-        .expect("Unable to run create window command.");
-}
-
 fn build_session_args(
     session_name: &String,
     window_name: &String,
@@ -102,13 +95,6 @@ fn build_session_args(
     session_args
 }
 
-fn create_session(create_session_args: Vec<String>) {
-    Command::new("tmux")
-        .args(&create_session_args)
-        .output()
-        .expect("Unable to create session.");
-}
-
 fn build_pane_command_args(
     session_name: &String,
     window_index: &usize,
@@ -122,13 +108,6 @@ fn build_pane_command_args(
         String::from(command),
         String::from("Enter"),
     ]
-}
-
-fn run_pane_command(pane_command_args: &Vec<String>) {
-    Command::new("tmux")
-        .args(pane_command_args)
-        .output()
-        .expect("Unable to run pane command.");
 }
 
 fn build_attach_args(session_name: &String) -> Vec<String> {
@@ -169,7 +148,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         &config.windows[0].name,
         &session_start_directory,
     );
-    create_session(create_session_args);
+    let error_message = String::from("Unable to create session.");
+    run_tmux_command(&create_session_args, &error_message);
 
     for (window_index, window) in config.windows.iter().enumerate() {
         // The first window is created by create_session because tmux always
@@ -194,14 +174,18 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 &window.name,
                 &window_start_directory,
             );
-            create_window(create_window_args);
+            let error_message =
+                String::from("Unable to run create window command.");
+            run_tmux_command(&create_window_args, &error_message);
         }
 
         for (pane_index, pane) in window.panes.iter().enumerate() {
             // Pane 0 is created by default by the containing window
             if pane_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
-                create_pane(pane_args);
+                let error_message =
+                    String::from("Unable to run create pane command.");
+                run_tmux_command(&pane_args, &error_message);
             }
 
             // Conditionally set start_directory for pane.
@@ -215,7 +199,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                     &pane_index,
                     &command,
                 );
-                run_pane_command(&pane_command_args);
+
+                let error_message = String::from("Unable to run pane command.");
+                run_tmux_command(&pane_command_args, &error_message);
             }
 
             for (_, command) in pane.commands.iter().enumerate() {
@@ -225,7 +211,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                     &pane_index,
                     command,
                 );
-                run_pane_command(&pane_command_args);
+                let error_message = String::from("Unable to run pane command.");
+                run_tmux_command(&pane_command_args, &error_message);
             }
 
             // requires tmux >= 3.0a and some variation of the following in
