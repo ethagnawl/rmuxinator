@@ -9,7 +9,7 @@ me to learn more about Rust, its ecosystem and compiling and distributing
 binaries for a number of platforms.
 
 ## How does it work?
-- install rust and cargo
+- install tmux (>= 3.0a), rust and cargo
 - build and run with: `cargo build && ./target/debug/rmuxinator start Foo.toml`
 
 ## Status
@@ -27,6 +27,9 @@ pane-border-format)
 - running pane commands
 
 Still TODO:
+- create single run_tmux_command function and use throughout
+- use feature detection to conditionally apply/opt out of certain features
+(user options)
 - window layout helper
 - integration tests which verify compound/derived values (e.g. start_directory)
 - integration tests which verify calls to tmux?
