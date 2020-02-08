@@ -121,7 +121,7 @@ fn build_attach_args(session_name: &String) -> Vec<String> {
 }
 
 fn build_session_start_directory(config: &Config) -> StartDirectory {
-    // Compute start_directory for first window using:
+    // Compute start_directory for session/first window using:
     // window.start_directory || config.start_directory
     if config.windows.len() > 0 {
         config.windows[0].start_directory.clone()
@@ -303,7 +303,6 @@ type StartDirectory = Option<String>;
 #[derive(Debug, Deserialize)]
 pub struct Pane {
     pub commands: Vec<String>,
-    // TODO: figure out a way to make this work consistently.
     pub name: Option<String>,
     pub start_directory: StartDirectory,
 }
