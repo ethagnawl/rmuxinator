@@ -22,7 +22,7 @@ features as I can find time. Right now, it's capable of:
 - setting cwd for windows
 - creating panes
 - setting cwd for panes
-- set pane title using user option (requires >= tmux 3.0a and related
+- setting a pane title using a "user option" (requires >= tmux 3.0a and related
 pane-border-format)
 - running pane commands
 
