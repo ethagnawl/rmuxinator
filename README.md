@@ -27,7 +27,6 @@ pane-border-format)
 - running pane commands
 
 Still TODO:
-- test degenerate case of build_window_layout_args
 - consider creating layout type alias Option<Layout>
 - use run_tmux_command for layout -- need handle conditional
 - use feature detection to conditionally apply/opt out of certain features

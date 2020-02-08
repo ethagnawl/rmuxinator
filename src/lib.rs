@@ -388,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn it_builds_window_layout_args() {
+    fn it_builds_window_layout_args_with_a_layout() {
         let session_name = String::from("foo");
         let window_index = 2;
         let layout = Some(Layout::Tiled);
@@ -401,6 +401,17 @@ mod tests {
         let actual =
             build_window_layout_args(&session_name, &window_index, &layout);
         assert_eq!(expected, actual.unwrap());
+    }
+
+    #[test]
+    fn it_builds_window_layout_args_without_a_layout() {
+        let session_name = String::from("foo");
+        let window_index = 2;
+        let layout = None;
+        let expected = None;
+        let actual =
+            build_window_layout_args(&session_name, &window_index, &layout);
+        assert_eq!(expected, actual);
     }
 
     #[test]
