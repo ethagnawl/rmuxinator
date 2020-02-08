@@ -24,9 +24,18 @@ fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
 fn build_window_layout_args(
     session_name: &String,
     window_index: &usize,
-    layout: &Option<Layout>,
+    config_layout: &Option<Layout>,
+    window_layout: &Option<Layout>,
 ) -> Option<Vec<String>> {
-    if let Some(layout) = layout {
+    let maybe_layout = if window_layout.is_some() {
+        &window_layout
+    } else if config_layout.is_some() {
+        &config_layout
+    } else {
+        &None
+    };
+
+    if let Some(layout) = maybe_layout {
         Some(vec![
             String::from("select-layout"),
             String::from("-t"),
@@ -240,6 +249,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         let window_layout_args = build_window_layout_args(
             session_name,
             &window_index,
+            &config.layout,
             &window.layout,
         );
         set_window_layout(window_layout_args)
@@ -263,8 +273,6 @@ pub struct CliArgs {
 
 impl CliArgs {
     pub fn new(args: &[String]) -> Result<CliArgs, &'static str> {
-        println!("CliArgs: {:#?}", args);
-
         Ok(CliArgs {
             command: args[1].clone(),
             project_name: args[2].clone(),
@@ -317,6 +325,7 @@ pub struct Window {
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    pub layout: Option<Layout>,
     pub name: String,
     pub start_directory: StartDirectory,
     pub windows: Vec<Window>,
@@ -336,8 +345,6 @@ impl Config {
         }
 
         let decoded: Config = toml::from_str(&contents).unwrap();
-
-        println!("decoded: {:#?}", decoded);
 
         Ok(decoded)
     }
@@ -387,30 +394,85 @@ mod tests {
     }
 
     #[test]
-    fn it_builds_window_layout_args_with_a_layout() {
+    fn it_builds_window_layout_args_without_a_window_layout_or_a_config_layout()
+    {
         let session_name = String::from("foo");
         let window_index = 2;
-        let layout = Some(Layout::Tiled);
+        let config_layout = None;
+        let window_layout = None;
+        let expected = None;
+        let actual = build_window_layout_args(
+            &session_name,
+            &window_index,
+            &config_layout,
+            &window_layout,
+        );
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_builds_window_layout_args_with_a_config_layout_and_no_window_layout()
+    {
+        let session_name = String::from("foo");
+        let window_index = 2;
+        let config_layout = Some(Layout::EvenHorizontal);
+        let window_layout = None;
+        let expected = vec![
+            String::from("select-layout"),
+            String::from("-t"),
+            format!("{}:{}", &session_name, &window_index),
+            String::from("even-horizontal"), // <~~ TODO: LAZY
+        ];
+        let actual = build_window_layout_args(
+            &session_name,
+            &window_index,
+            &config_layout,
+            &window_layout,
+        );
+        assert_eq!(expected, actual.unwrap());
+    }
+
+    #[test]
+    fn it_builds_window_layout_args_with_a_window_layout_and_no_config_layout()
+    {
+        let session_name = String::from("foo");
+        let window_index = 2;
+        let config_layout = None;
+        let window_layout = Some(Layout::Tiled);
         let expected = vec![
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
             String::from("tiled"), // <~~ TODO: LAZY
         ];
-        let actual =
-            build_window_layout_args(&session_name, &window_index, &layout);
+        let actual = build_window_layout_args(
+            &session_name,
+            &window_index,
+            &config_layout,
+            &window_layout,
+        );
         assert_eq!(expected, actual.unwrap());
     }
 
     #[test]
-    fn it_builds_window_layout_args_without_a_layout() {
+    fn it_builds_window_layout_args_with_a_window_layout_and_a_config_layout() {
         let session_name = String::from("foo");
         let window_index = 2;
-        let layout = None;
-        let expected = None;
-        let actual =
-            build_window_layout_args(&session_name, &window_index, &layout);
-        assert_eq!(expected, actual);
+        let config_layout = Some(Layout::Tiled);
+        let window_layout = Some(Layout::EvenHorizontal);
+        let expected = vec![
+            String::from("select-layout"),
+            String::from("-t"),
+            format!("{}:{}", &session_name, &window_index),
+            String::from("even-horizontal"), // <~~ TODO: LAZY
+        ];
+        let actual = build_window_layout_args(
+            &session_name,
+            &window_index,
+            &config_layout,
+            &window_layout,
+        );
+        assert_eq!(expected, actual.unwrap());
     }
 
     #[test]
@@ -485,6 +547,7 @@ mod tests {
     fn it_uses_no_start_directory_when_none_present_for_session_start_directory(
     ) {
         let config = Config {
+            layout: None,
             name: String::from("foo"),
             start_directory: None,
             windows: vec![Window {
@@ -504,6 +567,7 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_session_start_directory(
     ) {
         let config = Config {
+            layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
             windows: Vec::new(),
@@ -517,6 +581,7 @@ mod tests {
     fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory(
     ) {
         let config = Config {
+            layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
             windows: vec![Window {
@@ -535,6 +600,7 @@ mod tests {
     fn it_uses_no_start_directory_when_none_present_for_window_start_directory()
     {
         let config = Config {
+            layout: None,
             name: String::from("foo"),
             start_directory: None,
             windows: vec![Window {
@@ -556,6 +622,7 @@ mod tests {
     fn it_uses_windows_start_directory_over_configs_start_directory_for_window_start_directory(
     ) {
         let config = Config {
+            layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
             windows: vec![Window {
@@ -577,6 +644,7 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_window_start_directory(
     ) {
         let config = Config {
+            layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
             windows: vec![Window {

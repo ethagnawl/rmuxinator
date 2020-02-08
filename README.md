@@ -17,6 +17,7 @@ This project is currently just a proof of concept and I'll be duplicating
 features as I can find time. Right now, it's capable of:
 - parsing a TOML project config file
 - starting a named tmux session
+- setting a default layout for project windows
 - setting the default cwd
 - creating windows
 - setting cwd for windows
@@ -38,5 +39,4 @@ Still TODO:
 require writing a custom Serde deserializer for the Config type.
 - better handling of parse errors (prettier error messages)
 - hooks
-- project layout
 - select window on attach
