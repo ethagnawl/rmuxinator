@@ -253,6 +253,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             // TODO: sniff out user option support
             // TODO: make user option configurable
             if let Some(pane_name) = pane.name.clone() {
+                // TODO: move into helper
                 let rename_pane_args = vec![
                     String::from("set-option"),
                     String::from("-p"),
