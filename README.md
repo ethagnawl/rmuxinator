@@ -28,7 +28,6 @@ pane-border-format)
 - running pane commands
 
 Still TODO:
-- use complete command names (e.g. split-window instead of splitw)
 - consider creating layout type alias Option<Layout>
 - use run_tmux_command for layout -- need handle conditional
 - use feature detection to conditionally apply/opt out of certain features

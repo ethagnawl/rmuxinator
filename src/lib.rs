@@ -15,7 +15,7 @@ fn run_tmux_command(command: &Vec<String>, error_message: &String) {
 
 fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
     vec![
-        String::from("splitw"),
+        String::from("split-window"),
         String::from("-t"),
         format!("{}:{}", session_name, window_index.to_string()),
     ]
