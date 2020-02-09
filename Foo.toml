@@ -1,8 +1,64 @@
 layout = "main-horizontal"
 name = "foo"
-start_directory = "/home/peter/projects/VF-H-25-POC"
-windows = [
-  {start_directory = "/home/peter/projects/default-bleh", panes = [{name = "killer", commands = ["echo pane-one"]}, {name = "boots", start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-two"]}, {name = "man", commands = ["echo pane-three"]}, {commands = ["echo hi one", "echo intermediate one", "echo bye one"]}], layout = "tiled", name = "one"},
-  {start_directory = "/home/peter/projects/default-bleh", panes = [{name = "killer", commands = ["echo pane-one"]}, {name = "boots", start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-two"]}, {name = "man", commands = ["echo pane-three"]}, {commands = ["echo hi one", "echo intermediate one", "echo bye one"]}], name = "two"},
-  {start_directory = "/home/peter/projects/default-bleh", panes = [{name = "killer", commands = ["echo pane-one"]}, {name = "boots", start_directory = "/home/peter/projects/rmuxinator/src", commands = ["echo pane-two"]}, {name = "man", commands = ["echo pane-three"]}, {commands = ["echo hi one", "echo intermediate one", "echo bye one"]}], name = "three"},
-]
+start_directory = "/home/peter/projects/vim"
+
+
+[[windows]]
+  layout = "tiled"
+  name = "one"
+  start_directory = "/home/peter/projects/default-bleh"
+
+  [[windows.panes]]
+  commands = ["echo pane-one"]
+  name = "killer"
+
+  [[windows.panes]]
+  commands = ["echo pane-two"]
+  name = "boots"
+  start_directory = "/home/peter/projects/rmuxinator/src"
+
+  [[windows.panes]]
+  commands = ["echo pane-three"]
+  name = "man"
+
+  [[windows.panes]]
+  commands = ["echo hi one", "echo intermediate one", "echo bye one"]
+
+[[windows]]
+  name = "two"
+  start_directory = "/home/peter/projects/default-bleh"
+
+  [[windows.panes]]
+  commands = ["echo pane-one"]
+  name = "killer"
+
+  [[windows.panes]]
+  commands = ["echo pane-two"]
+  name = "boots"
+  start_directory = "/home/peter/projects/rmuxinator/src"
+
+  [[windows.panes]]
+  commands = ["echo pane-three"]
+  name = "man"
+
+  [[windows.panes]]
+  commands = ["echo hi one", "echo intermediate one", "echo bye one"]
+
+[[windows]]
+  name = "three"
+
+  [[windows.panes]]
+  commands = ["echo pane-one"]
+  name = "killer"
+
+  [[windows.panes]]
+  commands = ["echo pane-two"]
+  name = "boots"
+  start_directory = "/home/peter/projects/rmuxinator/src"
+
+  [[windows.panes]]
+  commands = ["echo pane-three"]
+  name = "man"
+
+  [[windows.panes]]
+  commands = ["echo hi one", "echo intermediate one", "echo bye one"]
