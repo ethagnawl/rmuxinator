@@ -602,6 +602,7 @@ mod tests {
     fn it_uses_no_start_directory_when_none_present_for_session_start_directory(
     ) {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -622,6 +623,7 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_session_start_directory(
     ) {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
@@ -636,6 +638,7 @@ mod tests {
     fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory(
     ) {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
@@ -655,6 +658,7 @@ mod tests {
     fn it_uses_no_start_directory_when_none_present_for_window_start_directory()
     {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -677,6 +681,7 @@ mod tests {
     fn it_uses_windows_start_directory_over_configs_start_directory_for_window_start_directory(
     ) {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
@@ -699,6 +704,7 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_window_start_directory(
     ) {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
@@ -720,6 +726,7 @@ mod tests {
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_none() {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -746,6 +753,7 @@ mod tests {
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_none() {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -772,6 +780,7 @@ mod tests {
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_some() {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/bar/baz")),
@@ -798,6 +807,7 @@ mod tests {
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_some() {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/bar/baz")),
@@ -824,6 +834,7 @@ mod tests {
     #[test]
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_none() {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -850,6 +861,7 @@ mod tests {
     #[test]
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_some() {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/bar/baz")),
@@ -876,6 +888,7 @@ mod tests {
     #[test]
     fn it_uses_config_sd_when_pane_sd_is_none_and_config_sd_is_none() {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
@@ -902,6 +915,7 @@ mod tests {
     #[test]
     fn it_uses_no_pane_sd_when_none_are_set() {
         let config = Config {
+            hooks: vec![],
             layout: None,
             name: String::from("foo"),
             start_directory: None,
