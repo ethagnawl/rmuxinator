@@ -14,15 +14,13 @@ fn main() {
         process::exit(1);
     });
 
-    println!("main.rs {:?}", cli_args);
-
     let config = Config::new(cli_args).unwrap_or_else(|error| {
         eprintln!("Problem parsing config file: {}", error);
         process::exit(1);
     });
 
     if let Err(error) = run(config) {
-        println!("Application error: {}", error);
+        eprintln!("Application error: {}", error);
         process::exit(1);
     }
 }

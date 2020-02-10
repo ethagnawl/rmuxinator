@@ -384,21 +384,24 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(cli_args: CliArgs) -> Result<Config, &'static str> {
+    pub fn new(cli_args: CliArgs) -> Result<Config, String> {
         let mut f = match File::open(cli_args.project_name) {
             Ok(x) => x,
-            Err(_) => return Err("Unable to open config file."),
+            Err(_) => return Err(String::from("Unable to open config file.")),
         };
         let mut contents = String::new();
 
         match f.read_to_string(&mut contents) {
             Ok(_) => (),
-            Err(_) => return Err("Unable to read config file."),
+            Err(_) => return Err(String::from("Unable to read config file.")),
         }
 
-        let decoded: Config = toml::from_str(&contents).unwrap();
+        let decoded = toml::from_str(&contents);
 
-        Ok(decoded)
+        match decoded {
+            Ok(config) => Ok(config),
+            Err(error) => Err(error.to_string()),
+        }
     }
 }
 
