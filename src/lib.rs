@@ -174,6 +174,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let error_message = String::from("Unable to create session.");
     run_tmux_command(&create_session_args, &error_message);
 
+    for hook in &config.hooks {
+        let hook_error_message = format!("Unable to run set hook command");
+        let hook_command = vec![
+            String::from("set-hook"),
+            hook.name.to_string(),
+            hook.command.to_string(),
+        ];
+        run_tmux_command(&hook_command, &hook_error_message);
+    }
+
     for (window_index, window) in config.windows.iter().enumerate() {
         // The first window is created by create_session because tmux always
         // creates a window when creating a session.
@@ -345,7 +355,28 @@ pub struct Window {
 }
 
 #[derive(Debug, Deserialize)]
+pub enum HookName {
+    #[serde(rename = "pane-focus-in")]
+    PaneFocusIn,
+}
+
+impl HookName {
+    fn to_string(&self) -> String {
+        match self {
+            Self::PaneFocusIn => String::from("pane-focus-in"),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Hook {
+    name: HookName,
+    command: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Config {
+    pub hooks: Vec<Hook>,
     pub layout: Option<Layout>,
     pub name: String,
     pub start_directory: StartDirectory,

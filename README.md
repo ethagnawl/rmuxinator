@@ -28,6 +28,7 @@ pane-border-format)
 - running pane commands
 
 Still TODO:
+- move hook creation into helper and test helper
 - move rename_pane_args into helper
 - looks like format doesn't consume values, so refs aren't (always?) necessary
 - consider creating layout type alias Option<Layout>

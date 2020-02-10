@@ -2,6 +2,9 @@ layout = "main-horizontal"
 name = "foo"
 start_directory = "/home/peter/projects/vim"
 
+[[hooks]]
+  name = "pane-focus-in"
+  command = "run \"tmux display-message 'Hi from pane-focus-in hook!'\""
 
 [[windows]]
   layout = "tiled"
