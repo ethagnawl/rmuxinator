@@ -26,9 +26,9 @@ features as I can find time. Right now, it's capable of:
 - setting a pane title using a "user option" (requires >= tmux 3.0a and related
 pane-border-format)
 - running pane commands
+- wire up hooks and callbacks
 
-Still TODO:
-- move hook creation into helper and test helper
+## Still TODO:
 - move rename_pane_args into helper
 - looks like format doesn't consume values, so refs aren't (always?) necessary
 - consider creating layout type alias Option<Layout>
@@ -40,6 +40,4 @@ Still TODO:
 - handle shell failures -- `tmux kill-window` was failing silently
 - Can commands can all be moved into structs and computed up front? This might
 require writing a custom Serde deserializer for the Config type.
-- better handling of parse errors (prettier error messages)
-- hooks
-- select window on attach
+- select window on attach (can this be handled by a pre-existing hook?)

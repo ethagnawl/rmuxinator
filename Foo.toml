@@ -6,6 +6,10 @@ start_directory = "/home/peter/projects/vim"
   name = "pane-focus-in"
   command = "run \"tmux display-message 'Hi from pane-focus-in hook!'\""
 
+[[hooks]]
+  name = "pane-focus-in"
+  command = "run \"sleep 2 && tmux display-message 'Hi from second pane-focus-in hook!'\""
+
 [[windows]]
   layout = "tiled"
   name = "one"

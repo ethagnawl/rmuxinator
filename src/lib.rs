@@ -161,6 +161,15 @@ fn build_pane_start_directory(
         .or(config_start_directory_)
 }
 
+fn build_hook_args(hook: &Hook) -> Vec<String> {
+    vec![
+        String::from("set-hook"),
+        String::from("-a"),
+        hook.name.to_string(),
+        hook.command.to_string(),
+    ]
+}
+
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let session_name = &config.name;
 
@@ -174,13 +183,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let error_message = String::from("Unable to create session.");
     run_tmux_command(&create_session_args, &error_message);
 
+    let hook_error_message = format!("Unable to run set hook command");
     for hook in &config.hooks {
-        let hook_error_message = format!("Unable to run set hook command");
-        let hook_command = vec![
-            String::from("set-hook"),
-            hook.name.to_string(),
-            hook.command.to_string(),
-        ];
+        let hook_command = build_hook_args(&hook);
         run_tmux_command(&hook_command, &hook_error_message);
     }
 
@@ -356,22 +361,134 @@ pub struct Window {
 
 #[derive(Debug, Deserialize)]
 pub enum HookName {
+    #[serde(rename = "alert-activity")]
+    AlertActivity,
+
+    #[serde(rename = "alert-bell")]
+    AlertBell,
+
+    #[serde(rename = "alert-silence")]
+    AlertSilence,
+
+    #[serde(rename = "client-attached")]
+    ClientAttached,
+
+    #[serde(rename = "client-detached")]
+    ClientDetached,
+
+    #[serde(rename = "client-resized")]
+    ClientResized,
+
+    #[serde(rename = "client-session-changed")]
+    ClientSessionChanged,
+
+    #[serde(rename = "layout-change")]
+    LayoutChange,
+
+    #[serde(rename = "output")]
+    Output,
+
+    #[serde(rename = "pane-died")]
+    PaneDied,
+
+    #[serde(rename = "pane-exited")]
+    PaneExited,
+
     #[serde(rename = "pane-focus-in")]
     PaneFocusIn,
+
+    #[serde(rename = "pane-focus-out")]
+    PaneFocusOut,
+
+    #[serde(rename = "pane-mode-changed")]
+    PaneModeChanged,
+
+    #[serde(rename = "pane-set-clipboard")]
+    PaneSetClipboard,
+
+    #[serde(rename = "session-changed")]
+    SessionChanged,
+
+    #[serde(rename = "session-closed")]
+    SessionClosed,
+
+    #[serde(rename = "session-created")]
+    SessionCreated,
+
+    #[serde(rename = "session-renamed")]
+    SessionRenamed,
+
+    #[serde(rename = "session-window-changed")]
+    SessionWindowChanged,
+
+    #[serde(rename = "sessions-changed")]
+    SessionsChanged,
+
+    #[serde(rename = "unlinked-window-add")]
+    UnlinkedWindowAdd,
+
+    #[serde(rename = "window-add")]
+    WindowAdd,
+
+    #[serde(rename = "window-close")]
+    WindowClose,
+
+    #[serde(rename = "window-linked")]
+    WindowLinked,
+
+    #[serde(rename = "window-pane-changed")]
+    WindowPaneChanged,
+
+    #[serde(rename = "window-renamed")]
+    WindowRenamed,
+
+    #[serde(rename = "window-unlinked")]
+    WindowUnlinked,
 }
 
 impl HookName {
     fn to_string(&self) -> String {
         match self {
+            Self::AlertActivity => String::from("alert-activity"),
+            Self::AlertBell => String::from("alert-bell"),
+            Self::AlertSilence => String::from("alert-silence"),
+            Self::ClientAttached => String::from("client-attached"),
+            Self::ClientDetached => String::from("client-detached"),
+            Self::ClientResized => String::from("client-resized"),
+            Self::ClientSessionChanged => {
+                String::from("client-session-changed")
+            }
+            Self::LayoutChange => String::from("layout-change"),
+            Self::Output => String::from("output"),
+            Self::PaneDied => String::from("pane-died"),
+            Self::PaneExited => String::from("pane-exited"),
             Self::PaneFocusIn => String::from("pane-focus-in"),
+            Self::PaneFocusOut => String::from("pane-focus-out"),
+            Self::PaneModeChanged => String::from("pane-mode-changed"),
+            Self::PaneSetClipboard => String::from("pane-set-clipboard"),
+            Self::SessionChanged => String::from("session-changed"),
+            Self::SessionClosed => String::from("session-closed"),
+            Self::SessionCreated => String::from("session-created"),
+            Self::SessionRenamed => String::from("session-renamed"),
+            Self::SessionWindowChanged => {
+                String::from("session-window-changed")
+            }
+            Self::SessionsChanged => String::from("sessions-changed"),
+            Self::UnlinkedWindowAdd => String::from("unlinked-window-add"),
+            Self::WindowAdd => String::from("window-add"),
+            Self::WindowClose => String::from("window-close"),
+            Self::WindowLinked => String::from("window-linked"),
+            Self::WindowPaneChanged => String::from("window-pane-changed"),
+            Self::WindowRenamed => String::from("window-renamed"),
+            Self::WindowUnlinked => String::from("window-unlinked"),
         }
     }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Hook {
-    name: HookName,
     command: String,
+    name: HookName,
 }
 
 #[derive(Debug, Deserialize)]
@@ -936,6 +1053,22 @@ mod tests {
             &config.windows[0].start_directory,
             &config.windows[0].panes[0].start_directory,
         );
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_builds_hook_arguments() {
+        let hook = Hook {
+            command: String::from("run \"echo hi\""),
+            name: HookName::PaneFocusIn,
+        };
+        let expected = vec![
+            String::from("set-hook"),
+            String::from("-a"),
+            String::from("pane-focus-in"),
+            String::from("run \"echo hi\""),
+        ];
+        let actual = build_hook_args(&hook);
         assert_eq!(expected, actual);
     }
 }
