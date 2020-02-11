@@ -31,6 +31,8 @@ pane-border-format config option)
 - wiring up tmux event hooks/callbacks
 
 ## Still TODO:
+- CliArgs.project_name should change to reflect that it's a file path
+- use enum for CliArgs.command
 - move rename_pane_args into helper
 - looks like format doesn't consume values, so refs aren't (always?) necessary
 - consider creating layout type alias Option<Layout>
@@ -44,5 +46,7 @@ pane-border-format config option)
 require writing a custom Serde deserializer for the Config type.
 - select window on attach (can this be handled by a pre-existing hook?)
 - attach if session exists instead of creating sesssion
+- search for project name instead of parsing config (i'm not convinced this is
+necessary)
 - other CLI commands? (create, edit, stop, delete, etc.)
 - use named args in calls to format!
