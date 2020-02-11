@@ -31,6 +31,8 @@ pane-border-format config option)
 - wiring up tmux event hooks/callbacks
 
 ## Still TODO:
+- add after command hooks (e.g. after-split-window) need to find/create
+comprehensive list
 - CliArgs.project_name should change to reflect that it's a file path
 - use enum for CliArgs.command
 - move rename_pane_args into helper
