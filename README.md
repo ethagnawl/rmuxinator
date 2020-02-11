@@ -41,3 +41,4 @@ pane-border-format)
 - Can commands can all be moved into structs and computed up front? This might
 require writing a custom Serde deserializer for the Config type.
 - select window on attach (can this be handled by a pre-existing hook?)
+- attach if session exists instead of creating sesssion
