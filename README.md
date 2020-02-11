@@ -3,30 +3,32 @@
 ## What is this?
 This project aims to be a clone of [tmuxinator](https://github.com/tmuxinator/tmuxinator), which allows users to define
 tmux project profiles (e.g. open two windows, split each into three panes and
-run specific commands in each). It is written in Rust and will be _much_
-more performant, portable and simpler to install. It's also a great excuse for
-me to learn more about Rust, its ecosystem and compiling and distributing
-binaries for a number of platforms.
+run specific commands in each). It is written in Rust and will be more
+performant, dependable and simpler to install. It's also a great excuse for
+me to learn more about Rust, its ecosystem and distributing binaries for
+various platforms.
 
 ## How does it work?
 - install tmux (>= 3.0a), rust and cargo
 - build and run with: `cargo build && ./target/debug/rmuxinator start Foo.toml`
 
 ## Status
-This project is currently just a proof of concept and I'll be duplicating
-features as I can find time. Right now, it's capable of:
+This project is currently a proof of concept and I'll be duplicating tmuxinator
+features (and some additional improvements) as I can find time. Right now, it's
+capable of:
 - parsing a TOML project config file
 - starting a named tmux session
 - setting a default layout for project windows
 - setting the default cwd
 - creating windows
 - setting cwd for windows
+- setting window layout
 - creating panes
 - setting cwd for panes
 - setting a pane title using a "user option" (requires >= tmux 3.0a and related
-pane-border-format)
+pane-border-format config option)
 - running pane commands
-- wire up hooks and callbacks
+- wiring up tmux event hooks/callbacks
 
 ## Still TODO:
 - move rename_pane_args into helper
@@ -42,3 +44,5 @@ pane-border-format)
 require writing a custom Serde deserializer for the Config type.
 - select window on attach (can this be handled by a pre-existing hook?)
 - attach if session exists instead of creating sesssion
+- other CLI commands? (create, edit, stop, delete, etc.)
+- use named args in calls to format!
