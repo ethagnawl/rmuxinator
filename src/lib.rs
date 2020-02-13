@@ -316,7 +316,6 @@ impl CliCommand {
     }
 }
 
-#[derive(Debug)]
 pub struct CliArgs {
     pub command: CliCommand,
     pub project_name: String,
@@ -381,6 +380,33 @@ pub struct Window {
 
 #[derive(Debug, Deserialize)]
 pub enum HookName {
+    // TODO: Does this make sense? If not, document exclusion.
+    // #[serde(rename = "after-new-session")]
+    // AfterNewSession,
+    #[serde(rename = "after-list-clients")]
+    AfterListClients,
+
+    #[serde(rename = "after-list-sessions")]
+    AfterListSessions,
+
+    #[serde(rename = "after-refresh-client")]
+    AfterRefreshClient,
+
+    #[serde(rename = "after-rename-session")]
+    AfterRenameSession,
+
+    #[serde(rename = "after-set-option")]
+    AfterSetOption,
+
+    #[serde(rename = "after-show-messages")]
+    AfterShowMessages,
+
+    #[serde(rename = "after-show-options")]
+    AfterShowOptions,
+
+    #[serde(rename = "after-split-window")]
+    AfterSplitWindow,
+
     #[serde(rename = "alert-activity")]
     AlertActivity,
 
@@ -469,6 +495,14 @@ pub enum HookName {
 impl HookName {
     fn to_string(&self) -> String {
         match self {
+            Self::AfterListClients => String::from("after-list-clients"),
+            Self::AfterListSessions => String::from("after-list-sessions"),
+            Self::AfterRefreshClient => String::from("after-refresh-client"),
+            Self::AfterRenameSession => String::from("after-rename-session"),
+            Self::AfterSetOption => String::from("after-set-option"),
+            Self::AfterShowMessages => String::from("after-show-messages"),
+            Self::AfterShowOptions => String::from("after-show-options"),
+            Self::AfterSplitWindow => String::from("after-split-window"),
             Self::AlertActivity => String::from("alert-activity"),
             Self::AlertBell => String::from("alert-bell"),
             Self::AlertSilence => String::from("alert-silence"),
@@ -522,6 +556,8 @@ pub struct Config {
 
 impl Config {
     pub fn new(cli_args: CliArgs) -> Result<Config, String> {
+        // Need to return String in failure case because toml::from_str may
+        // return a toml::de::Error.
         let mut f = match File::open(cli_args.project_name) {
             Ok(x) => x,
             Err(_) => return Err(String::from("Unable to open config file.")),
