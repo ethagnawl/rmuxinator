@@ -390,6 +390,9 @@ pub enum HookName {
     // AfterKillPane,
     // #[serde(rename = "after-kill-window")]
     // AfterKillWindow,
+    #[serde(rename = "after-bind-key")]
+    AfterBindKey,
+
     #[serde(rename = "after-capture-pane")]
     AfterCapturePane,
 
@@ -404,6 +407,9 @@ pub enum HookName {
 
     #[serde(rename = "after-list-clients")]
     AfterListClients,
+
+    #[serde(rename = "after-list-keys")]
+    AfterListKeys,
 
     #[serde(rename = "after-list-panes")]
     AfterListPanes,
@@ -444,6 +450,9 @@ pub enum HookName {
     #[serde(rename = "after-select-window")]
     AfterSelectWindow,
 
+    #[serde(rename = "after-send-keys")]
+    AfterSendKeys,
+
     #[serde(rename = "after-set-option")]
     AfterSetOption,
 
@@ -455,6 +464,9 @@ pub enum HookName {
 
     #[serde(rename = "after-split-window")]
     AfterSplitWindow,
+
+    #[serde(rename = "after-unbind-key")]
+    AfterUnbindKey,
 
     #[serde(rename = "alert-activity")]
     AlertActivity,
@@ -544,11 +556,13 @@ pub enum HookName {
 impl HookName {
     fn to_string(&self) -> String {
         match self {
+            Self::AfterBindKey => String::from("after-bind-key"),
             Self::AfterCapturePane => String::from("after-capture-pane"),
             Self::AfterCopyMode => String::from("after-copy-mode"),
             Self::AfterCursorDown => String::from("after-cursor-down"),
             Self::AfterDisplayPanes => String::from("after-display-panes"),
             Self::AfterListClients => String::from("after-list-clients"),
+            Self::AfterListKeys => String::from("after-list-keys"),
             Self::AfterListPanes => String::from("after-list-panes"),
             Self::AfterListSessions => String::from("after-list-sessions"),
             Self::AfterListWindows => String::from("after-list-windows"),
@@ -562,10 +576,12 @@ impl HookName {
             Self::AfterSelectLayout => String::from("after-select-layout"),
             Self::AfterSelectPane => String::from("after-select-pane"),
             Self::AfterSelectWindow => String::from("after-select-window"),
+            Self::AfterSendKeys => String::from("after-send-keys"),
             Self::AfterSetOption => String::from("after-set-option"),
             Self::AfterShowMessages => String::from("after-show-messages"),
             Self::AfterShowOptions => String::from("after-show-options"),
             Self::AfterSplitWindow => String::from("after-split-window"),
+            Self::AfterUnbindKey => String::from("after-unbind-key"),
             Self::AlertActivity => String::from("alert-activity"),
             Self::AlertBell => String::from("alert-bell"),
             Self::AlertSilence => String::from("alert-silence"),
