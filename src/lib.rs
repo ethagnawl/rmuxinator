@@ -302,17 +302,37 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 #[derive(Debug)]
+pub enum CliCommand {
+    Start,
+}
+
+impl CliCommand {
+    pub fn new(maybe_command: &String) -> Result<CliCommand, String> {
+        match maybe_command.as_str() {
+            "start" => Ok(Self::Start),
+            // TODO: present list of valid options?
+            _ => Err(format!("Command ({}) not recognized.", maybe_command)),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct CliArgs {
-    pub command: String,
+    pub command: CliCommand,
     pub project_name: String,
 }
 
 impl CliArgs {
-    pub fn new(args: &[String]) -> Result<CliArgs, &'static str> {
-        Ok(CliArgs {
-            command: args[1].clone(),
-            project_name: args[2].clone(),
-        })
+    pub fn new(args: &[String]) -> Result<CliArgs, String> {
+        let maybe_command = CliCommand::new(&args[1]);
+        if maybe_command.is_ok() {
+            Ok(CliArgs {
+                command: maybe_command.unwrap(),
+                project_name: args[2].clone(),
+            })
+        } else {
+            Err(maybe_command.unwrap_err())
+        }
     }
 }
 
@@ -1070,5 +1090,19 @@ mod tests {
         ];
         let actual = build_hook_args(&hook);
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_accepts_valid_cli_commands() {
+        let expected = true;
+        let actual = CliCommand::new(&String::from("start")).is_ok();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_reject_bogus_cli_commands() {
+        let expected = true;
+        let actual = CliCommand::new(&String::from("xtart")).is_ok();
+        assert_ne!(expected, actual);
     }
 }

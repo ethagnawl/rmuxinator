@@ -31,10 +31,11 @@ pane-border-format config option)
 - wiring up tmux event hooks/callbacks
 
 ## Still TODO:
+- remove/replace Debugs
 - add after command hooks (e.g. after-split-window) need to find/create
 comprehensive list
 - CliArgs.project_name should change to reflect that it's a file path
-- use enum for CliArgs.command
+- consider presenting list of valid cli commands if constructor fails
 - move rename_pane_args into helper
 - looks like format doesn't consume values, so refs aren't (always?) necessary
 - consider creating layout type alias Option<Layout>
