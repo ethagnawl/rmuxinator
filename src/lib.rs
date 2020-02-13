@@ -383,17 +383,66 @@ pub enum HookName {
     // TODO: Does this make sense? If not, document exclusion.
     // #[serde(rename = "after-new-session")]
     // AfterNewSession,
+
+    // TODO: why doesn't this fire? It seems to be valid, but isn't ever
+    // triggered.
+    // #[serde(rename = "after-kill-pane")]
+    // AfterKillPane,
+    // #[serde(rename = "after-kill-window")]
+    // AfterKillWindow,
+    #[serde(rename = "after-capture-pane")]
+    AfterCapturePane,
+
+    #[serde(rename = "after-copy-mode")]
+    AfterCopyMode,
+
+    #[serde(rename = "after-cursor-down")]
+    AfterCursorDown,
+
+    #[serde(rename = "after-display-panes")]
+    AfterDisplayPanes,
+
     #[serde(rename = "after-list-clients")]
     AfterListClients,
 
+    #[serde(rename = "after-list-panes")]
+    AfterListPanes,
+
     #[serde(rename = "after-list-sessions")]
     AfterListSessions,
+
+    #[serde(rename = "after-list-windows")]
+    AfterListWindows,
+
+    #[serde(rename = "after-new-window")]
+    AfterNewWindow,
+
+    #[serde(rename = "after-pipe-pane")]
+    AfterPipePane,
 
     #[serde(rename = "after-refresh-client")]
     AfterRefreshClient,
 
     #[serde(rename = "after-rename-session")]
     AfterRenameSession,
+
+    #[serde(rename = "after-rename-window")]
+    AfterRenameWindow,
+
+    #[serde(rename = "after-resize-pane")]
+    AfterResizePane,
+
+    #[serde(rename = "after-resize-window")]
+    AfterResizeWindow,
+
+    #[serde(rename = "after-select-layout")]
+    AfterSelectLayout,
+
+    #[serde(rename = "after-select-pane")]
+    AfterSelectPane,
+
+    #[serde(rename = "after-select-window")]
+    AfterSelectWindow,
 
     #[serde(rename = "after-set-option")]
     AfterSetOption,
@@ -495,10 +544,24 @@ pub enum HookName {
 impl HookName {
     fn to_string(&self) -> String {
         match self {
+            Self::AfterCapturePane => String::from("after-capture-pane"),
+            Self::AfterCopyMode => String::from("after-copy-mode"),
+            Self::AfterCursorDown => String::from("after-cursor-down"),
+            Self::AfterDisplayPanes => String::from("after-display-panes"),
             Self::AfterListClients => String::from("after-list-clients"),
+            Self::AfterListPanes => String::from("after-list-panes"),
             Self::AfterListSessions => String::from("after-list-sessions"),
+            Self::AfterListWindows => String::from("after-list-windows"),
+            Self::AfterNewWindow => String::from("after-new-window"),
+            Self::AfterPipePane => String::from("after-pipe-pane"),
             Self::AfterRefreshClient => String::from("after-refresh-client"),
             Self::AfterRenameSession => String::from("after-rename-session"),
+            Self::AfterRenameWindow => String::from("after-rename-window"),
+            Self::AfterResizePane => String::from("after-resize-pane"),
+            Self::AfterResizeWindow => String::from("after-resize-window"),
+            Self::AfterSelectLayout => String::from("after-select-layout"),
+            Self::AfterSelectPane => String::from("after-select-pane"),
+            Self::AfterSelectWindow => String::from("after-select-window"),
             Self::AfterSetOption => String::from("after-set-option"),
             Self::AfterShowMessages => String::from("after-show-messages"),
             Self::AfterShowOptions => String::from("after-show-options"),
