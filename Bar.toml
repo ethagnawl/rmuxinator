@@ -1,5 +1,0 @@
-name = "bar"
-start_directory = "/home/peter/projects/VF-H-25-POC"
-windows = [
-  {panes = [{commands = ["echo pane-one"]}], name = "one"}
-]

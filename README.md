@@ -12,6 +12,93 @@ various platforms.
 - install tmux (preferably >= 3.0a), rust and cargo
 - build and run with: `cargo build && ./target/debug/rmuxinator start Foo.toml`
 
+## Documentation
+
+
+### Project Config
+Projects are defined using toml.
+
+For example:
+```
+layout = "main-horizontal"
+name = "example"
+pane_name_user_option = "custom_pane_title"
+start_directory = "/home/peter/projects/vim"
+
+[[hooks]]
+  command = "run-shell \"tmux display-message 'Hi from pane-focus-in hook!'\""
+  name = "pane-focus-in"
+
+[[windows]]
+  layout = "tiled"
+  name = "one"
+  start_directory = "/home/peter/projects/default-bleh"
+
+  [[windows.panes]]
+  commands = ["echo pane-one"]
+  name = "Work"
+
+  [[windows.panes]]
+  commands = ["echo pane-two"]
+  name = "Music"
+  start_directory = "/home/peter/projects/rmuxinator/src"
+
+  [[windows.panes]]
+  commands = ["echo pane-three"]
+  name = "RSS"
+
+  [[windows.panes]]
+  commands = ["echo hi one", "echo intermediate one", "echo bye one"]
+
+[[windows]]
+  name = "two"
+  start_directory = "/home/peter/projects/default-bleh"
+
+  [[windows.panes]]
+  commands = ["echo pane-one"]
+
+  [[windows.panes]]
+  commands = ["echo pane-two"]
+  start_directory = "/home/peter/projects/rmuxinator/src"
+
+  [[windows.panes]]
+  commands = ["echo pane-three"]
+
+  [[windows.panes]]
+  commands = ["echo hi one", "echo intermediate one", "echo bye one"]
+```
+#### Configuration Options
+Optional attributes will be noted below.
+
+##### Project
+- `name` (string)
+- `windows` (array; see dedicated entry)
+
+###### Optional
+- `hooks` (array; see dedicated entry)
+- `layout` (string; preset tmux layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled")
+- `pane_name_user_option` (string; must have matching entry in .tmux.conf (e.g.  `set -g pane-border-format "#{@custom_pane_title}"`)
+- `start_directory` (string)
+
+##### Hooks
+- `command` (string; must use tmux's `run_shell`; see tmux docs)
+- `name` (string; must match existing tmux hook (e.g. `after-select-pane`); see tmux docs)
+
+##### Windows
+- `name` (string)
+- `panes` (array; see dedicated entry)
+
+###### Optional
+- `layout` (string; preset tmux layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled")
+- `start_directory` (string)
+
+##### Panes
+- `commands` (array of strings)
+
+###### Optional
+- `name` (string)
+- `start_directory` (string)
+
 ## Status
 This project is currently a proof of concept and I'll be duplicating tmuxinator
 features (and some additional improvements) as I can find time. Right now, it's
@@ -31,6 +118,7 @@ pane-border-format config option)
 - wiring up optional tmux event hooks/callbacks
 
 ## Still TODO:
+- make window name optional
 - break lib into components files (Config, CliArgs, etc.)
 - Do we need custom hooks, like tmuxinator uses for pre_window, project_start,
 etc.? I was hoping to leverage tmux's hooks and save the trouble, but the

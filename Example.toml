@@ -1,15 +1,11 @@
 layout = "main-horizontal"
-name = "foo"
-start_directory = "/home/peter/projects/vim"
+name = "example"
 pane_name_user_option = "custom_pane_title"
+start_directory = "/home/peter/projects/vim"
 
 [[hooks]]
+  command = "run-shell \"tmux display-message 'Hi from pane-focus-in hook!'\""
   name = "pane-focus-in"
-  command = "run \"tmux display-message 'Hi from pane-focus-in hook!'\""
-
-[[hooks]]
-  name = "pane-focus-in"
-  command = "run \"sleep 2 && tmux display-message 'Hi from second pane-focus-in hook!'\""
 
 [[windows]]
   layout = "tiled"
@@ -18,16 +14,16 @@ pane_name_user_option = "custom_pane_title"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
-  name = "killer"
+  name = "Work"
 
   [[windows.panes]]
   commands = ["echo pane-two"]
-  name = "boots"
+  name = "Music"
   start_directory = "/home/peter/projects/rmuxinator/src"
 
   [[windows.panes]]
   commands = ["echo pane-three"]
-  name = "man"
+  name = "RSS"
 
   [[windows.panes]]
   commands = ["echo hi one", "echo intermediate one", "echo bye one"]
@@ -38,35 +34,13 @@ pane_name_user_option = "custom_pane_title"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
-  name = "killer"
 
   [[windows.panes]]
   commands = ["echo pane-two"]
-  name = "boots"
   start_directory = "/home/peter/projects/rmuxinator/src"
 
   [[windows.panes]]
   commands = ["echo pane-three"]
-  name = "man"
-
-  [[windows.panes]]
-  commands = ["echo hi one", "echo intermediate one", "echo bye one"]
-
-[[windows]]
-  name = "three"
-
-  [[windows.panes]]
-  commands = ["echo pane-one"]
-  name = "killer"
-
-  [[windows.panes]]
-  commands = ["echo pane-two"]
-  name = "boots"
-  start_directory = "/home/peter/projects/rmuxinator/src"
-
-  [[windows.panes]]
-  commands = ["echo pane-three"]
-  name = "man"
 
   [[windows.panes]]
   commands = ["echo hi one", "echo intermediate one", "echo bye one"]
