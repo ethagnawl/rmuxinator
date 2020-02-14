@@ -10,7 +10,7 @@ various platforms.
 
 ## How does it work?
 - install tmux (preferably >= 3.0a), rust and cargo
-- build and run with: `cargo build && ./target/debug/rmuxinator start Foo.toml`
+- build and run with: `cargo build && ./target/debug/rmuxinator start Example.toml`
 
 ## Documentation
 
