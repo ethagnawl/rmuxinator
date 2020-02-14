@@ -38,8 +38,6 @@ etc.? I was hoping to leverage tmux's hooks and save the trouble, but the
 mapping is not 1:1 and users could have to result to hacks like having hooks
 remove themselves in order to prevent duplicate events.
 - remove/replace Debugs
-- add after command hooks (e.g. after-split-window) need to find/create
-comprehensive list
 - CliArgs.project_name should change to reflect that it's a file path
 - consider presenting list of valid cli commands if constructor fails
 - move rename_pane_args into helper
@@ -55,10 +53,12 @@ comprehensive list
 require writing a custom Serde deserializer for the Config type.
 - select window on attach (can this be handled by a pre-existing hook?)
 - attach if session exists instead of creating sesssion
-- search for project name instead of parsing config (i'm not convinced this is
+- search for project name instead of parsing config (I'm not convinced this is
 necessary)
 - other CLI commands? (create, edit, stop, delete, etc.)
 - use named args in calls to format!
+- document config options and provide sample
+- cut v0.0.1 release and publish binaries
 
 ## Platforms
 Here are the platforms rmuxinator is known to work on:
