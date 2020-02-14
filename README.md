@@ -31,6 +31,7 @@ pane-border-format config option)
 - wiring up tmux event hooks/callbacks
 
 ## Still TODO:
+- validate project name presence before referencing
 - hooks must be optional
 - Do we need custom hooks, like tmuxinator uses for pre_window, project_start,
 etc.? I was hoping to leverage tmux's hooks and save the trouble, but the

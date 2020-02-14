@@ -323,6 +323,7 @@ pub struct CliArgs {
 
 impl CliArgs {
     pub fn new(args: &[String]) -> Result<CliArgs, String> {
+        // TODO: assert project_name exists
         let maybe_command = CliCommand::new(&args[1]);
         if maybe_command.is_ok() {
             Ok(CliArgs {
