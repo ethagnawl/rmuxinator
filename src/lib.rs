@@ -47,16 +47,6 @@ fn build_window_layout_args(
     }
 }
 
-fn set_window_layout(window_layout_args: Option<Vec<String>>) {
-    if window_layout_args.is_some() {
-        let args = window_layout_args.unwrap();
-        Command::new("tmux")
-            .args(&args)
-            .output()
-            .expect("Unable to set window layout.");
-    }
-}
-
 fn build_create_window_args(
     session_name: &String,
     window_index: usize,
@@ -307,7 +297,11 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             &config.layout,
             &window.layout,
         );
-        set_window_layout(window_layout_args)
+
+        if window_layout_args.is_some() {
+            let error_message = String::from("Unable to set window layout.");
+            run_tmux_command(&window_layout_args.unwrap(), &error_message)
+        }
     }
 
     // TODO: Move this into helper. First attempt resulted in error caused by
