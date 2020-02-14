@@ -2,11 +2,7 @@
 
 ## What is this?
 This project aims to be a clone of [tmuxinator](https://github.com/tmuxinator/tmuxinator), which allows users to define
-tmux project profiles (e.g. open two windows, split each into three panes and
-run specific commands in each). It is written in Rust and will be more
-performant, dependable and simpler to install. It's also a great excuse for
-me to learn more about Rust, its ecosystem and distributing binaries for
-various platforms.
+tmux project profiles (e.g. open two windows, split each into three panes and run specific commands in each). It is written in Rust and will be more dependable (config is typechecked where possible) and simpler to install. It's also a great excuse for me to learn more about Rust, its ecosystem and compiling/distributing binaries for various platforms.
 
 ## How does it work?
 - install tmux (preferably >= 3.0a), rust and cargo
