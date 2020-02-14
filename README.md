@@ -32,7 +32,7 @@ start_directory = "/home/peter/projects/vim"
 [[windows]]
   layout = "tiled"
   name = "one"
-  start_directory = "/home/peter/projects/default-bleh"
+  start_directory = "/home/peter/projects/sample-project"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
@@ -52,7 +52,7 @@ start_directory = "/home/peter/projects/vim"
 
 [[windows]]
   name = "two"
-  start_directory = "/home/peter/projects/default-bleh"
+  start_directory = "/home/peter/projects/sample-project"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
@@ -119,6 +119,7 @@ pane-border-format config option)
 
 ## Still TODO:
 - make window name optional
+- support custom layouts?
 - break lib into components files (Config, CliArgs, etc.)
 - Do we need custom hooks, like tmuxinator uses for pre_window, project_start,
 etc.? I was hoping to leverage tmux's hooks and save the trouble, but the
