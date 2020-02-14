@@ -1,6 +1,7 @@
 layout = "main-horizontal"
 name = "foo"
 start_directory = "/home/peter/projects/vim"
+pane_name_user_option = "custom_pane_title"
 
 [[hooks]]
   name = "pane-focus-in"

@@ -170,6 +170,31 @@ fn build_hook_args(hook: &Hook) -> Vec<String> {
     ]
 }
 
+pub fn build_rename_pane_args(
+    session_name: &String,
+    window_index: usize,
+    pane_index: usize,
+    pane_name_user_option: &Option<String>,
+    pane_name: &Option<String>,
+) -> Option<Vec<String>> {
+    // requires tmux >= 3.0a and some variation of the following in
+    // tmux.conf:
+    // e.g. `set -g pane-border-format "#{@user_option}"`
+    // TODO: Is it worth sniffing out user option support?
+    if pane_name.is_some() && pane_name_user_option.is_some() {
+        Some(vec![
+            String::from("set-option"),
+            String::from("-p"),
+            String::from("-t"),
+            format!("{}:{}.{}", session_name, window_index, pane_index),
+            format!("@{}", pane_name_user_option.clone().unwrap()),
+            String::from(pane_name.clone().unwrap()),
+        ])
+    } else {
+        None
+    }
+}
+
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let session_name = &config.name;
 
@@ -262,25 +287,17 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 run_tmux_command(&pane_command_args, &error_message);
             }
 
-            // requires tmux >= 3.0a and some variation of the following in
-            // tmux.conf:
-            // set -g pane-border-format "#{@mytitle}"
-            // TODO: consider setting pane-border-format user option to
-            // something unique and dynamic to prevent collisions
-            // TODO: sniff out user option support
-            // TODO: make user option configurable
-            if let Some(pane_name) = pane.name.clone() {
-                // TODO: move into helper
-                let rename_pane_args = vec![
-                    String::from("set-option"),
-                    String::from("-p"),
-                    String::from("-t"),
-                    format!("{}:{}.{}", session_name, window_index, pane_index),
-                    String::from("@mytitle"),
-                    String::from(pane_name),
-                ];
-                let error_message = String::from("Unable to run pane command.");
-                run_tmux_command(&rename_pane_args, &error_message);
+            let rename_pane_args = build_rename_pane_args(
+                session_name,
+                window_index,
+                pane_index,
+                &config.pane_name_user_option,
+                &pane.name.clone(),
+            );
+            let error_message =
+                String::from("Unable to run rename pane command.");
+            if rename_pane_args.is_some() {
+                run_tmux_command(&rename_pane_args.unwrap(), &error_message);
             }
         }
 
@@ -647,6 +664,7 @@ pub struct Hook {
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    pub pane_name_user_option: Option<String>,
     pub hooks: Option<Vec<Hook>>,
     pub layout: Option<Layout>,
     pub name: String,
@@ -875,6 +893,7 @@ mod tests {
     fn it_uses_no_start_directory_when_none_present_for_session_start_directory(
     ) {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -896,6 +915,7 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_session_start_directory(
     ) {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -911,6 +931,7 @@ mod tests {
     fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory(
     ) {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -931,6 +952,7 @@ mod tests {
     fn it_uses_no_start_directory_when_none_present_for_window_start_directory()
     {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -954,6 +976,7 @@ mod tests {
     fn it_uses_windows_start_directory_over_configs_start_directory_for_window_start_directory(
     ) {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -977,6 +1000,7 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_window_start_directory(
     ) {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -999,6 +1023,7 @@ mod tests {
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_none() {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -1026,6 +1051,7 @@ mod tests {
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_none() {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -1053,6 +1079,7 @@ mod tests {
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_some() {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -1080,6 +1107,7 @@ mod tests {
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_some() {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -1107,6 +1135,7 @@ mod tests {
     #[test]
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_none() {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -1134,6 +1163,7 @@ mod tests {
     #[test]
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_some() {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -1161,6 +1191,7 @@ mod tests {
     #[test]
     fn it_uses_config_sd_when_pane_sd_is_none_and_config_sd_is_none() {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -1188,6 +1219,7 @@ mod tests {
     #[test]
     fn it_uses_no_pane_sd_when_none_are_set() {
         let config = Config {
+            pane_name_user_option: None,
             hooks: None,
             layout: None,
             name: String::from("foo"),
@@ -1225,6 +1257,69 @@ mod tests {
             String::from("run \"echo hi\""),
         ];
         let actual = build_hook_args(&hook);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_builds_rename_pane_args_when_pane_name_and_pane_name_user_option_present(
+    ) {
+        let session_name = String::from("session-name");
+        let window_index = 3;
+        let pane_index = 4;
+        let pane_name_user_option = Some(String::from("pane_name_user_option"));
+        let pane_name = Some(String::from("pane-name"));
+        let expected = vec![
+            String::from("set-option"),
+            String::from("-p"),
+            String::from("-t"),
+            format!("{}:{}.{}", session_name, window_index, pane_index),
+            String::from("@pane_name_user_option"),
+            String::from("pane-name"),
+        ];
+        let actual = build_rename_pane_args(
+            &session_name,
+            window_index,
+            pane_index,
+            &pane_name_user_option,
+            &pane_name,
+        );
+        assert_eq!(expected, actual.unwrap());
+    }
+
+    #[test]
+    fn it_doesnt_build_rename_pane_args_when_no_pane_name_present() {
+        let session_name = String::from("session-name");
+        let window_index = 3;
+        let pane_index = 4;
+        let pane_name_user_option = Some(String::from("pane_name_user_option"));
+        let pane_name = None;
+        let expected = None;
+        let actual = build_rename_pane_args(
+            &session_name,
+            window_index,
+            pane_index,
+            &pane_name_user_option,
+            &pane_name,
+        );
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_doesnt_build_rename_pane_args_when_no_pane_name_user_option_present()
+    {
+        let session_name = String::from("session-name");
+        let window_index = 3;
+        let pane_index = 4;
+        let pane_name_user_option = None;
+        let pane_name = Some(String::from("pane-name"));
+        let expected = None;
+        let actual = build_rename_pane_args(
+            &session_name,
+            window_index,
+            pane_index,
+            &pane_name_user_option,
+            &pane_name,
+        );
         assert_eq!(expected, actual);
     }
 
