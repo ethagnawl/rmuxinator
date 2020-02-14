@@ -183,10 +183,12 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let error_message = String::from("Unable to create session.");
     run_tmux_command(&create_session_args, &error_message);
 
-    let hook_error_message = format!("Unable to run set hook command");
-    for hook in &config.hooks {
-        let hook_command = build_hook_args(&hook);
-        run_tmux_command(&hook_command, &hook_error_message);
+    if config.hooks.is_some() {
+        let hook_error_message = format!("Unable to run set hook command");
+        for hook in &config.hooks.unwrap() {
+            let hook_command = build_hook_args(&hook);
+            run_tmux_command(&hook_command, &hook_error_message);
+        }
     }
 
     for (window_index, window) in config.windows.iter().enumerate() {
@@ -627,7 +629,7 @@ pub struct Hook {
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub hooks: Vec<Hook>,
+    pub hooks: Option<Vec<Hook>>,
     pub layout: Option<Layout>,
     pub name: String,
     pub start_directory: StartDirectory,
