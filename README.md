@@ -9,7 +9,7 @@ me to learn more about Rust, its ecosystem and distributing binaries for
 various platforms.
 
 ## How does it work?
-- install tmux (>= 3.0a), rust and cargo
+- install tmux (preferably >= 3.0a), rust and cargo
 - build and run with: `cargo build && ./target/debug/rmuxinator start Foo.toml`
 
 ## Status
@@ -31,6 +31,11 @@ pane-border-format config option)
 - wiring up tmux event hooks/callbacks
 
 ## Still TODO:
+- hooks must be optional
+- Do we need custom hooks, like tmuxinator uses for pre_window, project_start,
+etc.? I was hoping to leverage tmux's hooks and save the trouble, but the
+mapping is not 1:1 and users could have to result to hacks like having hooks
+remove themselves in order to prevent duplicate events.
 - remove/replace Debugs
 - add after command hooks (e.g. after-split-window) need to find/create
 comprehensive list
@@ -53,3 +58,17 @@ require writing a custom Serde deserializer for the Config type.
 necessary)
 - other CLI commands? (create, edit, stop, delete, etc.)
 - use named args in calls to format!
+
+## Platforms
+Here are the platforms rmuxinator is known to work on:
+- x86_64 GNU/Linux
+- armv6l GNU/Linux (I was able to successfully cross-compile from debian x86_64
+=> armv6l using the arm-linux-gnueabihf linker provided in the
+raspberrypi/tools repository. The Debian package did not work; I was able to
+compile successfully, but the program segfaulted immediately when executed.)
+
+## Resources
+- https://github.com/raspberrypi/tools
+- https://old.reddit.com/r/rust/comments/9io0z8/run_crosscompiled_code_on_rpi_0/
+- https://medium.com/@wizofe/cross-compiling-rust-for-arm-e-g-raspberry-pi-using-any-os-11711ebfc52b
+- https://devel.tech/tips/n/tMuXz2lj/the-power-of-tmux-hooks/
