@@ -312,25 +312,43 @@ impl CliCommand {
     pub fn new(maybe_command: &String) -> Result<CliCommand, String> {
         match maybe_command.as_str() {
             "start" => Ok(Self::Start),
-            // TODO: present list of valid options?
+            // TODO: present static list of valid options instead?
             _ => Err(format!("Command ({}) not recognized.", maybe_command)),
         }
     }
 }
 
+#[derive(Debug)]
 pub struct CliArgs {
     pub command: CliCommand,
     pub project_name: String,
 }
 
 impl CliArgs {
-    pub fn new(args: &[String]) -> Result<CliArgs, String> {
-        // TODO: assert project_name exists
-        let maybe_command = CliCommand::new(&args[1]);
+    pub fn new(args: &Vec<String>) -> Result<CliArgs, String> {
+        // TODO: None of this scales very well, but I wanted to see if I could
+        // avoid using a third-party library. Maybe it's worth trying clap or
+        // quicli.
+
+        let args_ = args.clone();
+        // drop entrypoint (e.g. ./rmuxinator)
+        let mut args_ = args_.iter().skip(1);
+        let command_ = args_.next();
+        let project_ = args_.next();
+
+        if command_.is_none() {
+            return Err(String::from("Command is required."));
+        }
+
+        if project_.is_none() {
+            return Err(String::from("Project is required."));
+        }
+
+        let maybe_command = CliCommand::new(command_.unwrap());
         if maybe_command.is_ok() {
             Ok(CliArgs {
                 command: maybe_command.unwrap(),
-                project_name: args[2].clone(),
+                project_name: project_.unwrap().clone(),
             })
         } else {
             Err(maybe_command.unwrap_err())
@@ -1211,16 +1229,32 @@ mod tests {
     }
 
     #[test]
-    fn it_accepts_valid_cli_commands() {
+    fn it_accepts_valid_cli_command_arg() {
         let expected = true;
         let actual = CliCommand::new(&String::from("start")).is_ok();
         assert_eq!(expected, actual);
     }
 
     #[test]
-    fn it_reject_bogus_cli_commands() {
+    fn it_rejects_valid_cli_command_arg() {
         let expected = true;
         let actual = CliCommand::new(&String::from("xtart")).is_ok();
         assert_ne!(expected, actual);
+    }
+
+    #[test]
+    fn cli_args_requires_a_command_arg() {
+        let args = vec![String::from("rmuxinator")];
+        let expected = String::from("Command is required.");
+        let actual = CliArgs::new(&args);
+        assert_eq!(expected, actual.unwrap_err());
+    }
+
+    #[test]
+    fn cli_args_requires_a_project_arg() {
+        let args = vec![String::from("rmuxinator"), String::from("start")];
+        let expected = String::from("Project is required.");
+        let actual = CliArgs::new(&args);
+        assert_eq!(expected, actual.unwrap_err());
     }
 }

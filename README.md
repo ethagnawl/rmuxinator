@@ -31,7 +31,7 @@ pane-border-format config option)
 - wiring up optional tmux event hooks/callbacks
 
 ## Still TODO:
-- validate project name presence before referencing
+- break lib into components files (Config, CliArgs, etc.)
 - Do we need custom hooks, like tmuxinator uses for pre_window, project_start,
 etc.? I was hoping to leverage tmux's hooks and save the trouble, but the
 mapping is not 1:1 and users could have to result to hacks like having hooks
