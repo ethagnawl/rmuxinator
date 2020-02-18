@@ -10,7 +10,7 @@ start_directory = "/home/peter/projects/vim"
 [[windows]]
   layout = "tiled"
   name = "one"
-  start_directory = "/home/peter/projects/default-bleh"
+  start_directory = "/home/peter/projects/sample-project"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
@@ -30,7 +30,7 @@ start_directory = "/home/peter/projects/vim"
 
 [[windows]]
   name = "two"
-  start_directory = "/home/peter/projects/default-bleh"
+  start_directory = "/home/peter/projects/sample-project"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
