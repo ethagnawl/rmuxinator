@@ -114,6 +114,7 @@ pane-border-format config option)
 - wiring up optional tmux event hooks/callbacks
 
 ## Still TODO:
+- check for presence of tmux
 - make window name optional
 - support custom layouts?
 - break lib into components files (Config, CliArgs, etc.)
@@ -144,8 +145,9 @@ necessary)
 ## Platforms
 Here are the platforms rmuxinator is known to work on:
 - x86_64 GNU/Linux
-- armv6l GNU/Linux (I was able to successfully cross-compile from debian x86_64
-=> armv6l using the arm-linux-gnueabihf linker provided in the
+- x86_64 GNU/Linux (Windows Subshell)
+- armv6l GNU/Linux (RPi Zero; I was able to successfully cross-compile from
+Debian x86_64 => armv6l using the arm-linux-gnueabihf linker provided in the
 raspberrypi/tools repository. The Debian package did not work; I was able to
 compile successfully, but the program segfaulted immediately when executed.)
 
