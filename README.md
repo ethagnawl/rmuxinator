@@ -116,7 +116,6 @@ pane-border-format config option)
 ## Still TODO:
 - consider building up and executing a single script (a la tmuxinator) instead
 of shelling out many times
-- check for presence of tmux
 - make window name optional
 - support custom layouts?
 - break lib into components files (Config, CliArgs, etc.)

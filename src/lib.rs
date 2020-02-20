@@ -185,6 +185,19 @@ pub fn build_rename_pane_args(
     }
 }
 
+pub fn test_for_tmux(tmux_command: String) -> bool {
+    // TODO: an optarg would be nice, but they're not currently supported.
+    // This parameter exists only to facilitate testing and the main caller
+    // will never _need_ to pass anything non-standard.
+    let mut shell = Command::new("sh");
+    let output = shell
+        .arg("-c")
+        .arg(format!("command -v {}", tmux_command))
+        .output()
+        .expect("Unable to test for tmux.");
+    output.status.success()
+}
+
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let session_name = &config.name;
 
@@ -1345,5 +1358,19 @@ mod tests {
         let expected = String::from("Project is required.");
         let actual = CliArgs::new(&args);
         assert_eq!(expected, actual.unwrap_err());
+    }
+
+    #[test]
+    fn test_for_tmux_returns_true_when_tmux_exists() {
+        let expected = true;
+        let actual = test_for_tmux(String::from("tmux"));
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_for_tmux_returns_false_when_tmux_doesnt_exist() {
+        let expected = false;
+        let actual = test_for_tmux(String::from("xmux"));
+        assert_eq!(expected, actual);
     }
 }
