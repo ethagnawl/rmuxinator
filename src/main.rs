@@ -1,15 +1,12 @@
 extern crate rmuxinator;
 
-use rmuxinator::run;
-use rmuxinator::CliArgs;
-use rmuxinator::Config;
-use std::env;
-use std::process;
+use rmuxinator::{run, CliArgs, Config};
+use std::{env, process};
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let raw_cli_args: Vec<String> = env::args().collect();
 
-    let cli_args = CliArgs::new(&args).unwrap_or_else(|error| {
+    let cli_args = CliArgs::new(&raw_cli_args).unwrap_or_else(|error| {
         eprintln!("Problem parsing CLI arguments: {}", error);
         process::exit(1);
     });

@@ -670,13 +670,13 @@ impl Config {
     pub fn new(cli_args: CliArgs) -> Result<Config, String> {
         // Need to return String in failure case because toml::from_str may
         // return a toml::de::Error.
-        let mut f = match File::open(cli_args.project_name) {
-            Ok(x) => x,
+        let mut config_file = match File::open(cli_args.project_name) {
+            Ok(file) => file,
             Err(_) => return Err(String::from("Unable to open config file.")),
         };
         let mut contents = String::new();
 
-        match f.read_to_string(&mut contents) {
+        match config_file.read_to_string(&mut contents) {
             Ok(_) => (),
             Err(_) => return Err(String::from("Unable to read config file.")),
         }
