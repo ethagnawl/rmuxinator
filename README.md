@@ -114,6 +114,7 @@ pane-border-format config option)
 - wiring up optional tmux event hooks/callbacks
 
 ## Still TODO:
+- make pub fn the exception in lib constructs
 - consider building up and executing a single script (a la tmuxinator) instead
 of shelling out many times
 - make window name optional
