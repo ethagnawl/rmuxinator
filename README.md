@@ -97,7 +97,7 @@ Optional attributes will be noted below.
 
 ## Status
 This project is currently a proof of concept and I'll be duplicating tmuxinator
-features (and some additional improvements) as I can find time. Right now, it's
+features (and adding additional improvements) as I can find time. Right now, it's
 capable of:
 - parsing a TOML project config file
 - starting a named tmux session
