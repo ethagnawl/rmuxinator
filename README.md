@@ -1,5 +1,9 @@
 # rmuxinator
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ethagnawl/rmuxinator/master/rmuxinator-screenshot.png" alt="Screenshot" width="80%" />
+</p>
+
 ## What is this?
 This project aims to be a clone of [tmuxinator](https://github.com/tmuxinator/tmuxinator), which allows users to define
 tmux project profiles (e.g. open two windows, split each into three panes and run specific commands in each). It is written in Rust and will be more dependable (config is typechecked where possible) and simpler to install. It's also a great excuse for me to learn more about Rust, its ecosystem and compiling/distributing binaries for various platforms.
