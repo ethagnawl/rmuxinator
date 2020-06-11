@@ -160,7 +160,7 @@ fn build_hook_args(hook: &Hook) -> Vec<String> {
     ]
 }
 
-pub fn build_rename_pane_args(
+fn build_rename_pane_args(
     session_name: &String,
     window_index: usize,
     pane_index: usize,
@@ -328,12 +328,12 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 #[derive(Debug)]
-pub enum CliCommand {
+enum CliCommand {
     Start,
 }
 
 impl CliCommand {
-    pub fn new(maybe_command: &String) -> Result<CliCommand, String> {
+    fn new(maybe_command: &String) -> Result<CliCommand, String> {
         match maybe_command.as_str() {
             "start" => Ok(Self::Start),
             // TODO: present static list of valid options instead?
@@ -344,8 +344,8 @@ impl CliCommand {
 
 #[derive(Debug)]
 pub struct CliArgs {
-    pub command: CliCommand,
-    pub project_name: String,
+    command: CliCommand,
+    project_name: String,
 }
 
 impl CliArgs {
@@ -381,7 +381,7 @@ impl CliArgs {
 }
 
 #[derive(Debug, Deserialize)]
-pub enum Layout {
+enum Layout {
     #[serde(rename = "even-horizontal")]
     EvenHorizontal,
     #[serde(rename = "even-vertical")]
@@ -409,22 +409,22 @@ impl Layout {
 type StartDirectory = Option<String>;
 
 #[derive(Debug, Deserialize)]
-pub struct Pane {
-    pub commands: Vec<String>,
-    pub name: Option<String>,
-    pub start_directory: StartDirectory,
+struct Pane {
+    commands: Vec<String>,
+    name: Option<String>,
+    start_directory: StartDirectory,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Window {
-    pub layout: Option<Layout>,
-    pub name: String,
-    pub panes: Vec<Pane>,
-    pub start_directory: StartDirectory,
+struct Window {
+    layout: Option<Layout>,
+    name: String,
+    panes: Vec<Pane>,
+    start_directory: StartDirectory,
 }
 
 #[derive(Debug, Deserialize)]
-pub enum HookName {
+enum HookName {
     // TODO: Does this make sense? If not, document exclusion.
     // #[serde(rename = "after-new-session")]
     // AfterNewSession,
@@ -664,19 +664,19 @@ impl HookName {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Hook {
+struct Hook {
     command: String,
     name: HookName,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub pane_name_user_option: Option<String>,
-    pub hooks: Option<Vec<Hook>>,
-    pub layout: Option<Layout>,
-    pub name: String,
-    pub start_directory: StartDirectory,
-    pub windows: Vec<Window>,
+    pane_name_user_option: Option<String>,
+    hooks: Option<Vec<Hook>>,
+    layout: Option<Layout>,
+    name: String,
+    start_directory: StartDirectory,
+    windows: Vec<Window>,
 }
 
 impl Config {
