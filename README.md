@@ -9,7 +9,7 @@ This project aims to be a clone of [tmuxinator](https://github.com/tmuxinator/tm
 tmux project profiles (e.g. open two windows, split each into three panes and run specific commands in each). It is written in Rust and will be more dependable (config is typechecked where possible) and simpler to install. It's also a great excuse for me to learn more about Rust, its ecosystem and compiling/distributing binaries for various platforms.
 
 ## How does it work?
-- install tmux (>= 3.0a), rust and cargo
+- install tmux (>= 2.8), rust and cargo
 - build and run with: `cargo build && ./target/debug/rmuxinator start Example.toml`
 
 ## Documentation
