@@ -142,7 +142,8 @@ require writing a custom Serde deserializer for the Config type.
 - attach if session exists instead of creating sesssion
 - search for project name instead of parsing config (I'm not convinced this is
 necessary)
-- other CLI commands? (create, edit, stop, delete, etc.)
+- other CLI commands? (debug (for sure), stop (nice to have), create, edit,
+delete (maybe))
 - use named args in calls to format! where possible
 - document config options and provide sample
 - cut v0.0.1 release and publish binaries
