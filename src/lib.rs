@@ -396,13 +396,10 @@ enum Layout {
 
 impl Layout {
     fn to_string(&self) -> String {
-        match self {
-            Self::EvenHorizontal => String::from("even-horizontal"),
-            Self::EvenVertical => String::from("even-vertical"),
-            Self::MainHorizontal => String::from("main-horizontal"),
-            Self::MainVertical => String::from("main-vertical"),
-            Self::Tiled => String::from("tiled"),
-        }
+        // Get arm name from Debug
+        let arm_name = format!("{:?}", self);
+        // Make the string kebab-case to match tmux's usage
+        kebabify(&arm_name)
     }
 }
 
@@ -600,66 +597,10 @@ enum HookName {
 
 impl HookName {
     fn to_string(&self) -> String {
-        match self {
-            Self::AfterBindKey => String::from("after-bind-key"),
-            Self::AfterCapturePane => String::from("after-capture-pane"),
-            Self::AfterCopyMode => String::from("after-copy-mode"),
-            Self::AfterCursorDown => String::from("after-cursor-down"),
-            Self::AfterDisplayPanes => String::from("after-display-panes"),
-            Self::AfterListClients => String::from("after-list-clients"),
-            Self::AfterListKeys => String::from("after-list-keys"),
-            Self::AfterListPanes => String::from("after-list-panes"),
-            Self::AfterListSessions => String::from("after-list-sessions"),
-            Self::AfterListWindows => String::from("after-list-windows"),
-            Self::AfterNewWindow => String::from("after-new-window"),
-            Self::AfterPipePane => String::from("after-pipe-pane"),
-            Self::AfterRefreshClient => String::from("after-refresh-client"),
-            Self::AfterRenameSession => String::from("after-rename-session"),
-            Self::AfterRenameWindow => String::from("after-rename-window"),
-            Self::AfterResizePane => String::from("after-resize-pane"),
-            Self::AfterResizeWindow => String::from("after-resize-window"),
-            Self::AfterSelectLayout => String::from("after-select-layout"),
-            Self::AfterSelectPane => String::from("after-select-pane"),
-            Self::AfterSelectWindow => String::from("after-select-window"),
-            Self::AfterSendKeys => String::from("after-send-keys"),
-            Self::AfterSetOption => String::from("after-set-option"),
-            Self::AfterShowMessages => String::from("after-show-messages"),
-            Self::AfterShowOptions => String::from("after-show-options"),
-            Self::AfterSplitWindow => String::from("after-split-window"),
-            Self::AfterUnbindKey => String::from("after-unbind-key"),
-            Self::AlertActivity => String::from("alert-activity"),
-            Self::AlertBell => String::from("alert-bell"),
-            Self::AlertSilence => String::from("alert-silence"),
-            Self::ClientAttached => String::from("client-attached"),
-            Self::ClientDetached => String::from("client-detached"),
-            Self::ClientResized => String::from("client-resized"),
-            Self::ClientSessionChanged => {
-                String::from("client-session-changed")
-            }
-            Self::LayoutChange => String::from("layout-change"),
-            Self::Output => String::from("output"),
-            Self::PaneDied => String::from("pane-died"),
-            Self::PaneExited => String::from("pane-exited"),
-            Self::PaneFocusIn => String::from("pane-focus-in"),
-            Self::PaneFocusOut => String::from("pane-focus-out"),
-            Self::PaneModeChanged => String::from("pane-mode-changed"),
-            Self::PaneSetClipboard => String::from("pane-set-clipboard"),
-            Self::SessionChanged => String::from("session-changed"),
-            Self::SessionClosed => String::from("session-closed"),
-            Self::SessionCreated => String::from("session-created"),
-            Self::SessionRenamed => String::from("session-renamed"),
-            Self::SessionWindowChanged => {
-                String::from("session-window-changed")
-            }
-            Self::SessionsChanged => String::from("sessions-changed"),
-            Self::UnlinkedWindowAdd => String::from("unlinked-window-add"),
-            Self::WindowAdd => String::from("window-add"),
-            Self::WindowClose => String::from("window-close"),
-            Self::WindowLinked => String::from("window-linked"),
-            Self::WindowPaneChanged => String::from("window-pane-changed"),
-            Self::WindowRenamed => String::from("window-renamed"),
-            Self::WindowUnlinked => String::from("window-unlinked"),
-        }
+        // Get arm name from Debug
+        let arm_name = format!("{:?}", self);
+        // Make the string kebab-case to match tmux's usage
+        kebabify(&arm_name)
     }
 }
 
@@ -701,6 +642,23 @@ impl Config {
             Err(error) => Err(error.to_string()),
         }
     }
+}
+
+/// Convert a PascalCase string to a kebab-case string
+pub fn kebabify(pascal_case: &str) -> String {
+    // XXX: This can be simplified once `.split_inclusive()` stablizes
+    // Split string by uppercase characters and join with '-'
+    pascal_case
+        .chars()
+        .fold(String::from(""), |mut acc, mut c| {
+            // Separate uppercase letters by '-' after the first
+            if !acc.is_empty() && c.is_ascii_uppercase() {
+                acc.push('-');
+            }
+            c.make_ascii_lowercase();
+            acc.push(c);
+            acc
+        })
 }
 
 #[cfg(test)]
