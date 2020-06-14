@@ -381,16 +381,12 @@ impl CliArgs {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 enum Layout {
-    #[serde(rename = "even-horizontal")]
     EvenHorizontal,
-    #[serde(rename = "even-vertical")]
     EvenVertical,
-    #[serde(rename = "main-horizontal")]
     MainHorizontal,
-    #[serde(rename = "main-vertical")]
     MainVertical,
-    #[serde(rename = "tiled")]
     Tiled,
 }
 
@@ -424,177 +420,68 @@ struct Window {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 enum HookName {
     // TODO: Does this make sense? If not, document exclusion.
-    // #[serde(rename = "after-new-session")]
     // AfterNewSession,
 
     // TODO: why doesn't this fire? It seems to be valid, but isn't ever
     // triggered.
-    // #[serde(rename = "after-kill-pane")]
     // AfterKillPane,
-    // #[serde(rename = "after-kill-window")]
     // AfterKillWindow,
-    #[serde(rename = "after-bind-key")]
     AfterBindKey,
-
-    #[serde(rename = "after-capture-pane")]
     AfterCapturePane,
-
-    #[serde(rename = "after-copy-mode")]
     AfterCopyMode,
-
-    #[serde(rename = "after-cursor-down")]
     AfterCursorDown,
-
-    #[serde(rename = "after-display-panes")]
     AfterDisplayPanes,
-
-    #[serde(rename = "after-list-clients")]
     AfterListClients,
-
-    #[serde(rename = "after-list-keys")]
     AfterListKeys,
-
-    #[serde(rename = "after-list-panes")]
     AfterListPanes,
-
-    #[serde(rename = "after-list-sessions")]
     AfterListSessions,
-
-    #[serde(rename = "after-list-windows")]
     AfterListWindows,
-
-    #[serde(rename = "after-new-window")]
     AfterNewWindow,
-
-    #[serde(rename = "after-pipe-pane")]
     AfterPipePane,
-
-    #[serde(rename = "after-refresh-client")]
     AfterRefreshClient,
-
-    #[serde(rename = "after-rename-session")]
     AfterRenameSession,
-
-    #[serde(rename = "after-rename-window")]
     AfterRenameWindow,
-
-    #[serde(rename = "after-resize-pane")]
     AfterResizePane,
-
-    #[serde(rename = "after-resize-window")]
     AfterResizeWindow,
-
-    #[serde(rename = "after-select-layout")]
     AfterSelectLayout,
-
-    #[serde(rename = "after-select-pane")]
     AfterSelectPane,
-
-    #[serde(rename = "after-select-window")]
     AfterSelectWindow,
-
-    #[serde(rename = "after-send-keys")]
     AfterSendKeys,
-
-    #[serde(rename = "after-set-option")]
     AfterSetOption,
-
-    #[serde(rename = "after-show-messages")]
     AfterShowMessages,
-
-    #[serde(rename = "after-show-options")]
     AfterShowOptions,
-
-    #[serde(rename = "after-split-window")]
     AfterSplitWindow,
-
-    #[serde(rename = "after-unbind-key")]
     AfterUnbindKey,
-
-    #[serde(rename = "alert-activity")]
     AlertActivity,
-
-    #[serde(rename = "alert-bell")]
     AlertBell,
-
-    #[serde(rename = "alert-silence")]
     AlertSilence,
-
-    #[serde(rename = "client-attached")]
     ClientAttached,
-
-    #[serde(rename = "client-detached")]
     ClientDetached,
-
-    #[serde(rename = "client-resized")]
     ClientResized,
-
-    #[serde(rename = "client-session-changed")]
     ClientSessionChanged,
-
-    #[serde(rename = "layout-change")]
     LayoutChange,
-
-    #[serde(rename = "output")]
     Output,
-
-    #[serde(rename = "pane-died")]
     PaneDied,
-
-    #[serde(rename = "pane-exited")]
     PaneExited,
-
-    #[serde(rename = "pane-focus-in")]
     PaneFocusIn,
-
-    #[serde(rename = "pane-focus-out")]
     PaneFocusOut,
-
-    #[serde(rename = "pane-mode-changed")]
     PaneModeChanged,
-
-    #[serde(rename = "pane-set-clipboard")]
     PaneSetClipboard,
-
-    #[serde(rename = "session-changed")]
     SessionChanged,
-
-    #[serde(rename = "session-closed")]
     SessionClosed,
-
-    #[serde(rename = "session-created")]
     SessionCreated,
-
-    #[serde(rename = "session-renamed")]
     SessionRenamed,
-
-    #[serde(rename = "session-window-changed")]
     SessionWindowChanged,
-
-    #[serde(rename = "sessions-changed")]
     SessionsChanged,
-
-    #[serde(rename = "unlinked-window-add")]
     UnlinkedWindowAdd,
-
-    #[serde(rename = "window-add")]
     WindowAdd,
-
-    #[serde(rename = "window-close")]
     WindowClose,
-
-    #[serde(rename = "window-linked")]
     WindowLinked,
-
-    #[serde(rename = "window-pane-changed")]
     WindowPaneChanged,
-
-    #[serde(rename = "window-renamed")]
     WindowRenamed,
-
-    #[serde(rename = "window-unlinked")]
     WindowUnlinked,
 }
 
