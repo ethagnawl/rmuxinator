@@ -211,12 +211,10 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let error_message = String::from("Unable to create session.");
     run_tmux_command(&create_session_args, &error_message);
 
-    if config.hooks.is_some() {
-        let hook_error_message = format!("Unable to run set hook command");
-        for hook in &config.hooks.unwrap() {
-            let hook_command = build_hook_args(&hook);
-            run_tmux_command(&hook_command, &hook_error_message);
-        }
+    let hook_error_message = format!("Unable to run set hook command");
+    for hook in config.hooks {
+        let hook_command = build_hook_args(&hook);
+        run_tmux_command(&hook_command, &hook_error_message);
     }
 
     for (window_index, window) in config.windows.iter().enumerate() {
@@ -559,7 +557,8 @@ struct Hook {
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pane_name_user_option: Option<String>,
-    hooks: Option<Vec<Hook>>,
+    #[serde(default)]
+    hooks: Vec<Hook>,
     layout: Option<Layout>,
     name: String,
     start_directory: StartDirectory,
@@ -788,7 +787,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -810,7 +809,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
@@ -826,7 +825,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
@@ -847,7 +846,7 @@ mod tests {
     {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -871,7 +870,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
@@ -895,7 +894,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
@@ -918,7 +917,7 @@ mod tests {
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_none() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -946,7 +945,7 @@ mod tests {
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_none() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -974,7 +973,7 @@ mod tests {
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_some() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/bar/baz")),
@@ -1002,7 +1001,7 @@ mod tests {
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_some() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/bar/baz")),
@@ -1030,7 +1029,7 @@ mod tests {
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_none() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -1058,7 +1057,7 @@ mod tests {
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_some() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/bar/baz")),
@@ -1086,7 +1085,7 @@ mod tests {
     fn it_uses_config_sd_when_pane_sd_is_none_and_config_sd_is_none() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
@@ -1114,7 +1113,7 @@ mod tests {
     fn it_uses_no_pane_sd_when_none_are_set() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
