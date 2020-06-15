@@ -399,7 +399,7 @@ impl Layout {
         // Get arm name from Debug
         let arm_name = format!("{:?}", self);
         // Make the string kebab-case to match tmux's usage
-        kebabify(&arm_name)
+        convert_pascal_case_to_kebab_case(&arm_name)
     }
 }
 
@@ -600,7 +600,7 @@ impl HookName {
         // Get arm name from Debug
         let arm_name = format!("{:?}", self);
         // Make the string kebab-case to match tmux's usage
-        kebabify(&arm_name)
+        convert_pascal_case_to_kebab_case(&arm_name)
     }
 }
 
@@ -645,25 +645,39 @@ impl Config {
 }
 
 /// Convert a PascalCase string to a kebab-case string
-pub fn kebabify(pascal_case: &str) -> String {
-    // XXX: This can be simplified once `.split_inclusive()` stablizes
+fn convert_pascal_case_to_kebab_case(input: &str) -> String {
     // Split string by uppercase characters and join with '-'
-    pascal_case
-        .chars()
-        .fold(String::from(""), |mut acc, mut c| {
-            // Separate uppercase letters by '-' after the first
-            if !acc.is_empty() && c.is_ascii_uppercase() {
-                acc.push('-');
-            }
-            c.make_ascii_lowercase();
-            acc.push(c);
-            acc
-        })
+    // TODO: This can be simplified once `.split_inclusive()` stablizes
+    input.chars().fold(String::from(""), |mut acc, mut c| {
+        // Separate uppercase letters by '-' after the first
+        if !acc.is_empty() && c.is_ascii_uppercase() {
+            acc.push('-');
+        }
+        c.make_ascii_lowercase();
+        acc.push(c);
+        acc
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn it_converts_a_pascal_case_string_to_a_kebab_case_string() {
+        let pascal = String::from("KebabCase");
+        let expected = String::from("kebab-case");
+        let actual = convert_pascal_case_to_kebab_case(&pascal);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_no_ops_on_a_non_pascal_case_string() {
+        let pascal = String::from("foo");
+        let expected = String::from("foo");
+        let actual = convert_pascal_case_to_kebab_case(&pascal);
+        assert_eq!(expected, actual);
+    }
 
     #[test]
     fn it_builds_session_args_without_start_directory() {
