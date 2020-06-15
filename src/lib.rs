@@ -211,12 +211,10 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let error_message = String::from("Unable to create session.");
     run_tmux_command(&create_session_args, &error_message);
 
-    if config.hooks.is_some() {
-        let hook_error_message = format!("Unable to run set hook command");
-        for hook in &config.hooks.unwrap() {
-            let hook_command = build_hook_args(&hook);
-            run_tmux_command(&hook_command, &hook_error_message);
-        }
+    let hook_error_message = format!("Unable to run set hook command");
+    for hook in config.hooks {
+        let hook_command = build_hook_args(&hook);
+        run_tmux_command(&hook_command, &hook_error_message);
     }
 
     for (window_index, window) in config.windows.iter().enumerate() {
@@ -381,16 +379,12 @@ impl CliArgs {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 enum Layout {
-    #[serde(rename = "even-horizontal")]
     EvenHorizontal,
-    #[serde(rename = "even-vertical")]
     EvenVertical,
-    #[serde(rename = "main-horizontal")]
     MainHorizontal,
-    #[serde(rename = "main-vertical")]
     MainVertical,
-    #[serde(rename = "tiled")]
     Tiled,
 }
 
@@ -421,177 +415,68 @@ struct Window {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 enum HookName {
     // TODO: Does this make sense? If not, document exclusion.
-    // #[serde(rename = "after-new-session")]
     // AfterNewSession,
 
     // TODO: why doesn't this fire? It seems to be valid, but isn't ever
     // triggered.
-    // #[serde(rename = "after-kill-pane")]
     // AfterKillPane,
-    // #[serde(rename = "after-kill-window")]
     // AfterKillWindow,
-    #[serde(rename = "after-bind-key")]
     AfterBindKey,
-
-    #[serde(rename = "after-capture-pane")]
     AfterCapturePane,
-
-    #[serde(rename = "after-copy-mode")]
     AfterCopyMode,
-
-    #[serde(rename = "after-cursor-down")]
     AfterCursorDown,
-
-    #[serde(rename = "after-display-panes")]
     AfterDisplayPanes,
-
-    #[serde(rename = "after-list-clients")]
     AfterListClients,
-
-    #[serde(rename = "after-list-keys")]
     AfterListKeys,
-
-    #[serde(rename = "after-list-panes")]
     AfterListPanes,
-
-    #[serde(rename = "after-list-sessions")]
     AfterListSessions,
-
-    #[serde(rename = "after-list-windows")]
     AfterListWindows,
-
-    #[serde(rename = "after-new-window")]
     AfterNewWindow,
-
-    #[serde(rename = "after-pipe-pane")]
     AfterPipePane,
-
-    #[serde(rename = "after-refresh-client")]
     AfterRefreshClient,
-
-    #[serde(rename = "after-rename-session")]
     AfterRenameSession,
-
-    #[serde(rename = "after-rename-window")]
     AfterRenameWindow,
-
-    #[serde(rename = "after-resize-pane")]
     AfterResizePane,
-
-    #[serde(rename = "after-resize-window")]
     AfterResizeWindow,
-
-    #[serde(rename = "after-select-layout")]
     AfterSelectLayout,
-
-    #[serde(rename = "after-select-pane")]
     AfterSelectPane,
-
-    #[serde(rename = "after-select-window")]
     AfterSelectWindow,
-
-    #[serde(rename = "after-send-keys")]
     AfterSendKeys,
-
-    #[serde(rename = "after-set-option")]
     AfterSetOption,
-
-    #[serde(rename = "after-show-messages")]
     AfterShowMessages,
-
-    #[serde(rename = "after-show-options")]
     AfterShowOptions,
-
-    #[serde(rename = "after-split-window")]
     AfterSplitWindow,
-
-    #[serde(rename = "after-unbind-key")]
     AfterUnbindKey,
-
-    #[serde(rename = "alert-activity")]
     AlertActivity,
-
-    #[serde(rename = "alert-bell")]
     AlertBell,
-
-    #[serde(rename = "alert-silence")]
     AlertSilence,
-
-    #[serde(rename = "client-attached")]
     ClientAttached,
-
-    #[serde(rename = "client-detached")]
     ClientDetached,
-
-    #[serde(rename = "client-resized")]
     ClientResized,
-
-    #[serde(rename = "client-session-changed")]
     ClientSessionChanged,
-
-    #[serde(rename = "layout-change")]
     LayoutChange,
-
-    #[serde(rename = "output")]
     Output,
-
-    #[serde(rename = "pane-died")]
     PaneDied,
-
-    #[serde(rename = "pane-exited")]
     PaneExited,
-
-    #[serde(rename = "pane-focus-in")]
     PaneFocusIn,
-
-    #[serde(rename = "pane-focus-out")]
     PaneFocusOut,
-
-    #[serde(rename = "pane-mode-changed")]
     PaneModeChanged,
-
-    #[serde(rename = "pane-set-clipboard")]
     PaneSetClipboard,
-
-    #[serde(rename = "session-changed")]
     SessionChanged,
-
-    #[serde(rename = "session-closed")]
     SessionClosed,
-
-    #[serde(rename = "session-created")]
     SessionCreated,
-
-    #[serde(rename = "session-renamed")]
     SessionRenamed,
-
-    #[serde(rename = "session-window-changed")]
     SessionWindowChanged,
-
-    #[serde(rename = "sessions-changed")]
     SessionsChanged,
-
-    #[serde(rename = "unlinked-window-add")]
     UnlinkedWindowAdd,
-
-    #[serde(rename = "window-add")]
     WindowAdd,
-
-    #[serde(rename = "window-close")]
     WindowClose,
-
-    #[serde(rename = "window-linked")]
     WindowLinked,
-
-    #[serde(rename = "window-pane-changed")]
     WindowPaneChanged,
-
-    #[serde(rename = "window-renamed")]
     WindowRenamed,
-
-    #[serde(rename = "window-unlinked")]
     WindowUnlinked,
 }
 
@@ -613,7 +498,8 @@ struct Hook {
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pane_name_user_option: Option<String>,
-    hooks: Option<Vec<Hook>>,
+    #[serde(default)]
+    hooks: Vec<Hook>,
     layout: Option<Layout>,
     name: String,
     start_directory: StartDirectory,
@@ -873,7 +759,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -895,7 +781,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
@@ -911,7 +797,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
@@ -932,7 +818,7 @@ mod tests {
     {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -956,7 +842,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
@@ -980,7 +866,7 @@ mod tests {
     ) {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
@@ -1003,7 +889,7 @@ mod tests {
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_none() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -1031,7 +917,7 @@ mod tests {
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_none() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -1059,7 +945,7 @@ mod tests {
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_some() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/bar/baz")),
@@ -1087,7 +973,7 @@ mod tests {
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_some() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/bar/baz")),
@@ -1115,7 +1001,7 @@ mod tests {
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_none() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
@@ -1143,7 +1029,7 @@ mod tests {
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_some() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/bar/baz")),
@@ -1171,7 +1057,7 @@ mod tests {
     fn it_uses_config_sd_when_pane_sd_is_none_and_config_sd_is_none() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
@@ -1199,7 +1085,7 @@ mod tests {
     fn it_uses_no_pane_sd_when_none_are_set() {
         let config = Config {
             pane_name_user_option: None,
-            hooks: None,
+            hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
             start_directory: None,
