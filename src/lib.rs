@@ -211,7 +211,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let error_message = String::from("Unable to create session.");
     run_tmux_command(&create_session_args, &error_message);
 
-    let hook_error_message = format!("Unable to run set hook command");
+    let hook_error_message = String::from("Unable to run set hook command");
     for hook in config.hooks {
         let hook_command = build_hook_args(&hook);
         run_tmux_command(&hook_command, &hook_error_message);
