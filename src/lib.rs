@@ -331,8 +331,8 @@ enum CliCommand {
 }
 
 impl CliCommand {
-    fn new(maybe_command: &String) -> Result<CliCommand, String> {
-        match maybe_command.as_str() {
+    fn new(maybe_command: &str) -> Result<CliCommand, String> {
+        match maybe_command {
             "start" => Ok(Self::Start),
             // TODO: present static list of valid options instead?
             _ => Err(format!("Command ({}) not recognized.", maybe_command)),
