@@ -6,14 +6,14 @@ use std::process::Command;
 
 extern crate toml;
 
-fn run_tmux_command(command: &Vec<String>, error_message: &String) {
+fn run_tmux_command(command: &Vec<String>, error_message: &str) {
     Command::new("tmux")
         .args(command)
         .output()
         .expect(error_message);
 }
 
-fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
+fn build_pane_args(session_name: &str, window_index: &usize) -> Vec<String> {
     vec![
         String::from("split-window"),
         String::from("-t"),
@@ -22,7 +22,7 @@ fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
 }
 
 fn build_window_layout_args(
-    session_name: &String,
+    session_name: &str,
     window_index: &usize,
     config_layout: &Option<Layout>,
     window_layout: &Option<Layout>,
@@ -48,9 +48,9 @@ fn build_window_layout_args(
 }
 
 fn build_create_window_args(
-    session_name: &String,
+    session_name: &str,
     window_index: usize,
-    window_name: &String,
+    window_name: &str,
     start_directory: &Option<String>,
 ) -> Vec<String> {
     let mut create_window_args = vec![
@@ -70,8 +70,8 @@ fn build_create_window_args(
 }
 
 fn build_session_args(
-    session_name: &String,
-    window_name: &String,
+    session_name: &str,
+    window_name: &str,
     start_directory: &StartDirectory,
 ) -> Vec<String> {
     // Pass first window name to new-session, otherwise a default window gets
@@ -96,10 +96,10 @@ fn build_session_args(
 }
 
 fn build_pane_command_args(
-    session_name: &String,
+    session_name: &str,
     window_index: &usize,
     pane_index: &usize,
-    command: &String,
+    command: &str,
 ) -> Vec<String> {
     vec![
         String::from("send-keys"),
@@ -110,7 +110,7 @@ fn build_pane_command_args(
     ]
 }
 
-fn build_attach_args(session_name: &String) -> Vec<String> {
+fn build_attach_args(session_name: &str) -> Vec<String> {
     vec![
         String::from("-u"),
         String::from("attach-session"),
