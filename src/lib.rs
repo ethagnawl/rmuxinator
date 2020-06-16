@@ -122,7 +122,7 @@ fn build_attach_args(session_name: &str) -> Vec<String> {
 fn build_session_start_directory(config: &Config) -> StartDirectory {
     // Compute start_directory for session/first window using:
     // window.start_directory || config.start_directory
-    if config.windows.len() > 0 {
+    if !config.windows.is_empty() {
         config.windows[0].start_directory.clone()
     } else {
         config.start_directory.clone()
