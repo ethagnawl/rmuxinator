@@ -40,7 +40,7 @@ fn build_window_layout_args(
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", session_name, window_index.to_string()),
-            String::from(layout.to_string()),
+            layout.to_string(),
         ])
     } else {
         None
