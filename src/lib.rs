@@ -178,7 +178,7 @@ fn build_rename_pane_args(
             String::from("-t"),
             format!("{}:{}.{}", session_name, window_index, pane_index),
             format!("@{}", pane_name_user_option.clone().unwrap()),
-            String::from(pane_name.clone().unwrap()),
+            pane_name.clone().unwrap(),
         ])
     } else {
         None
