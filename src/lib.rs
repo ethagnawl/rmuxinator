@@ -161,7 +161,7 @@ fn build_hook_args(hook: &Hook) -> Vec<String> {
 }
 
 fn build_rename_pane_args(
-    session_name: &String,
+    session_name: &str,
     window_index: usize,
     pane_index: usize,
     pane_name_user_option: &Option<String>,
