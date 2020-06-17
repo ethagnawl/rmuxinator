@@ -1,19 +1,20 @@
 use serde::Deserialize;
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::process::Command;
 
 extern crate toml;
 
-fn run_tmux_command(command: &Vec<String>, error_message: &String) {
+fn run_tmux_command(command: &[String], error_message: &str) {
     Command::new("tmux")
         .args(command)
         .output()
         .expect(error_message);
 }
 
-fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
+fn build_pane_args(session_name: &str, window_index: &usize) -> Vec<String> {
     vec![
         String::from("split-window"),
         String::from("-t"),
@@ -22,7 +23,7 @@ fn build_pane_args(session_name: &String, window_index: &usize) -> Vec<String> {
 }
 
 fn build_window_layout_args(
-    session_name: &String,
+    session_name: &str,
     window_index: &usize,
     config_layout: &Option<Layout>,
     window_layout: &Option<Layout>,
@@ -40,7 +41,7 @@ fn build_window_layout_args(
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", session_name, window_index.to_string()),
-            String::from(layout.to_string()),
+            layout.to_string(),
         ])
     } else {
         None
@@ -48,9 +49,9 @@ fn build_window_layout_args(
 }
 
 fn build_create_window_args(
-    session_name: &String,
+    session_name: &str,
     window_index: usize,
-    window_name: &String,
+    window_name: &str,
     start_directory: &Option<String>,
 ) -> Vec<String> {
     let mut create_window_args = vec![
@@ -70,8 +71,8 @@ fn build_create_window_args(
 }
 
 fn build_session_args(
-    session_name: &String,
-    window_name: &String,
+    session_name: &str,
+    window_name: &str,
     start_directory: &StartDirectory,
 ) -> Vec<String> {
     // Pass first window name to new-session, otherwise a default window gets
@@ -96,10 +97,10 @@ fn build_session_args(
 }
 
 fn build_pane_command_args(
-    session_name: &String,
+    session_name: &str,
     window_index: &usize,
     pane_index: &usize,
-    command: &String,
+    command: &str,
 ) -> Vec<String> {
     vec![
         String::from("send-keys"),
@@ -110,7 +111,7 @@ fn build_pane_command_args(
     ]
 }
 
-fn build_attach_args(session_name: &String) -> Vec<String> {
+fn build_attach_args(session_name: &str) -> Vec<String> {
     vec![
         String::from("-u"),
         String::from("attach-session"),
@@ -122,7 +123,7 @@ fn build_attach_args(session_name: &String) -> Vec<String> {
 fn build_session_start_directory(config: &Config) -> StartDirectory {
     // Compute start_directory for session/first window using:
     // window.start_directory || config.start_directory
-    if config.windows.len() > 0 {
+    if !config.windows.is_empty() {
         config.windows[0].start_directory.clone()
     } else {
         config.start_directory.clone()
@@ -161,7 +162,7 @@ fn build_hook_args(hook: &Hook) -> Vec<String> {
 }
 
 fn build_rename_pane_args(
-    session_name: &String,
+    session_name: &str,
     window_index: usize,
     pane_index: usize,
     pane_name_user_option: &Option<String>,
@@ -178,7 +179,7 @@ fn build_rename_pane_args(
             String::from("-t"),
             format!("{}:{}.{}", session_name, window_index, pane_index),
             format!("@{}", pane_name_user_option.clone().unwrap()),
-            String::from(pane_name.clone().unwrap()),
+            pane_name.clone().unwrap(),
         ])
     } else {
         None
@@ -211,7 +212,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let error_message = String::from("Unable to create session.");
     run_tmux_command(&create_session_args, &error_message);
 
-    let hook_error_message = format!("Unable to run set hook command");
+    let hook_error_message = String::from("Unable to run set hook command");
     for hook in config.hooks {
         let hook_command = build_hook_args(&hook);
         run_tmux_command(&hook_command, &hook_error_message);
@@ -297,8 +298,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             );
             let error_message =
                 String::from("Unable to run rename pane command.");
-            if rename_pane_args.is_some() {
-                run_tmux_command(&rename_pane_args.unwrap(), &error_message);
+            if let Some(rename_pane_args_) = rename_pane_args {
+                run_tmux_command(&rename_pane_args_, &error_message);
             }
         }
 
@@ -309,9 +310,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             &window.layout,
         );
 
-        if window_layout_args.is_some() {
+        if let Some(window_layout_args_) = window_layout_args {
             let error_message = String::from("Unable to set window layout.");
-            run_tmux_command(&window_layout_args.unwrap(), &error_message)
+            run_tmux_command(&window_layout_args_, &error_message)
         }
     }
 
@@ -331,8 +332,8 @@ enum CliCommand {
 }
 
 impl CliCommand {
-    fn new(maybe_command: &String) -> Result<CliCommand, String> {
-        match maybe_command.as_str() {
+    fn new(maybe_command: &str) -> Result<CliCommand, String> {
+        match maybe_command {
             "start" => Ok(Self::Start),
             // TODO: present static list of valid options instead?
             _ => Err(format!("Command ({}) not recognized.", maybe_command)),
@@ -347,12 +348,12 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
-    pub fn new(args: &Vec<String>) -> Result<CliArgs, String> {
+    pub fn new(args: &[String]) -> Result<CliArgs, String> {
         // TODO: None of this scales very well, but I wanted to see if I could
         // avoid using a third-party library. Maybe it's worth trying clap or
         // quicli.
 
-        let args_ = args.clone();
+        let args_ = args.to_owned();
         // drop entrypoint (e.g. ./rmuxinator)
         let mut args_ = args_.iter().skip(1);
         let command_ = args_.next();
@@ -367,9 +368,9 @@ impl CliArgs {
         }
 
         let maybe_command = CliCommand::new(command_.unwrap());
-        if maybe_command.is_ok() {
+        if let Ok(maybe_command_) = maybe_command {
             Ok(CliArgs {
-                command: maybe_command.unwrap(),
+                command: maybe_command_,
                 project_name: project_.unwrap().clone(),
             })
         } else {
@@ -388,12 +389,12 @@ enum Layout {
     Tiled,
 }
 
-impl Layout {
-    fn to_string(&self) -> String {
-        // Get arm name from Debug
-        let arm_name = format!("{:?}", self);
-        // Make the string kebab-case to match tmux's usage
-        convert_pascal_case_to_kebab_case(&arm_name)
+impl fmt::Display for Layout {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let pascal_case_hook_name = format!("{:?}", self);
+        let kebab_case_hook_name =
+            convert_pascal_case_to_kebab_case(&pascal_case_hook_name);
+        write!(f, "{}", kebab_case_hook_name)
     }
 }
 
@@ -480,12 +481,12 @@ enum HookName {
     WindowUnlinked,
 }
 
-impl HookName {
-    fn to_string(&self) -> String {
-        // Get arm name from Debug
-        let arm_name = format!("{:?}", self);
-        // Make the string kebab-case to match tmux's usage
-        convert_pascal_case_to_kebab_case(&arm_name)
+impl fmt::Display for HookName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let pascal_case_hook_name = format!("{:?}", self);
+        let kebab_case_hook_name =
+            convert_pascal_case_to_kebab_case(&pascal_case_hook_name);
+        write!(f, "{}", kebab_case_hook_name)
     }
 }
 
