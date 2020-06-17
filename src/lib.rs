@@ -6,7 +6,7 @@ use std::process::Command;
 
 extern crate toml;
 
-fn run_tmux_command(command: &Vec<String>, error_message: &str) {
+fn run_tmux_command(command: &[String], error_message: &str) {
     Command::new("tmux")
         .args(command)
         .output()
