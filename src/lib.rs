@@ -297,8 +297,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             );
             let error_message =
                 String::from("Unable to run rename pane command.");
-            if rename_pane_args.is_some() {
-                run_tmux_command(&rename_pane_args.unwrap(), &error_message);
+            if let Some(rename_pane_args_) = rename_pane_args {
+                run_tmux_command(&rename_pane_args_, &error_message);
             }
         }
 
@@ -309,9 +309,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             &window.layout,
         );
 
-        if window_layout_args.is_some() {
+        if let Some(window_layout_args_) = window_layout_args {
             let error_message = String::from("Unable to set window layout.");
-            run_tmux_command(&window_layout_args.unwrap(), &error_message)
+            run_tmux_command(&window_layout_args_, &error_message)
         }
     }
 
@@ -367,9 +367,9 @@ impl CliArgs {
         }
 
         let maybe_command = CliCommand::new(command_.unwrap());
-        if maybe_command.is_ok() {
+        if let Ok(maybe_command_) = maybe_command {
             Ok(CliArgs {
-                command: maybe_command.unwrap(),
+                command: maybe_command_,
                 project_name: project_.unwrap().clone(),
             })
         } else {
