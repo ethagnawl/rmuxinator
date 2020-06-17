@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::process::Command;
@@ -388,12 +389,12 @@ enum Layout {
     Tiled,
 }
 
-impl Layout {
-    fn to_string(&self) -> String {
-        // Get arm name from Debug
-        let arm_name = format!("{:?}", self);
-        // Make the string kebab-case to match tmux's usage
-        convert_pascal_case_to_kebab_case(&arm_name)
+impl fmt::Display for Layout {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let pascal_case_hook_name = format!("{:?}", self);
+        let kebab_case_hook_name =
+            convert_pascal_case_to_kebab_case(&pascal_case_hook_name);
+        write!(f, "{}", kebab_case_hook_name)
     }
 }
 
@@ -480,12 +481,12 @@ enum HookName {
     WindowUnlinked,
 }
 
-impl HookName {
-    fn to_string(&self) -> String {
-        // Get arm name from Debug
-        let arm_name = format!("{:?}", self);
-        // Make the string kebab-case to match tmux's usage
-        convert_pascal_case_to_kebab_case(&arm_name)
+impl fmt::Display for HookName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let pascal_case_hook_name = format!("{:?}", self);
+        let kebab_case_hook_name =
+            convert_pascal_case_to_kebab_case(&pascal_case_hook_name);
+        write!(f, "{}", kebab_case_hook_name)
     }
 }
 
