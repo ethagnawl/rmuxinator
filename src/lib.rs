@@ -347,12 +347,12 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
-    pub fn new(args: &Vec<String>) -> Result<CliArgs, String> {
+    pub fn new(args: &[String]) -> Result<CliArgs, String> {
         // TODO: None of this scales very well, but I wanted to see if I could
         // avoid using a third-party library. Maybe it's worth trying clap or
         // quicli.
 
-        let args_ = args.clone();
+        let args_ = args.to_owned();
         // drop entrypoint (e.g. ./rmuxinator)
         let mut args_ = args_.iter().skip(1);
         let command_ = args_.next();
