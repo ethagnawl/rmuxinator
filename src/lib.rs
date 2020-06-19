@@ -815,22 +815,12 @@ mod tests {
     #[test]
     fn it_uses_no_start_directory_when_none_present_for_window_start_directory()
     {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: None,
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: Vec::new(),
-                start_directory: None,
-            }],
-        };
+        let config_start_directory = None;
+        let window_start_directory = None;
+
         let actual = build_window_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
         );
         assert!(actual.is_none());
     }
@@ -838,23 +828,13 @@ mod tests {
     #[test]
     fn it_uses_windows_start_directory_over_configs_start_directory_for_window_start_directory(
     ) {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: Some(String::from("/this/is/ignored")),
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: Vec::new(),
-                start_directory: Some(String::from("/bar/baz")),
-            }],
-        };
-        let expected = Some(String::from("/bar/baz"));
+        let config_start_directory = Some(String::from("/this/is/ignored"));
+        let window_start_directory = Some(String::from("/bar/baz"));
+
+        let expected = window_start_directory.clone();
         let actual = build_window_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
         );
         assert_eq!(expected, actual);
     }
@@ -862,246 +842,132 @@ mod tests {
     #[test]
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_window_start_directory(
     ) {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: Some(String::from("/foo/bar")),
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: Vec::new(),
-                start_directory: None,
-            }],
-        };
-        let expected = Some(String::from("/foo/bar"));
+        let config_start_directory = Some(String::from("/foo/bar"));
+        let window_start_directory = None;
+
+        let expected = config_start_directory.clone();
         let actual = build_window_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
         );
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_none() {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: None,
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: vec![Pane {
-                    commands: vec![],
-                    name: None,
-                    start_directory: Some(String::from("/foo/bar")),
-                }],
-                start_directory: None,
-            }],
-        };
-        let expected = Some(String::from("/foo/bar"));
+        let config_start_directory = None;
+        let window_start_directory = None;
+        let pane_start_directory = Some(String::from("/foo/bar"));
+
+        let expected = pane_start_directory.clone();
         let actual = build_pane_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
-            &config.windows[0].panes[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
+            &pane_start_directory,
         );
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_none() {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: None,
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: vec![Pane {
-                    commands: vec![],
-                    name: None,
-                    start_directory: Some(String::from("/foo/bar")),
-                }],
-                start_directory: Some(String::from("/bar/baz")),
-            }],
-        };
-        let expected = Some(String::from("/foo/bar"));
+        let config_start_directory = None;
+        let window_start_directory = Some(String::from("/bar/baz"));
+        let pane_start_directory = Some(String::from("/foo/bar"));
+
+        let expected = pane_start_directory.clone();
         let actual = build_pane_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
-            &config.windows[0].panes[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
+            &pane_start_directory,
         );
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_some() {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: Some(String::from("/bar/baz")),
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: vec![Pane {
-                    commands: vec![],
-                    name: None,
-                    start_directory: Some(String::from("/foo/bar")),
-                }],
-                start_directory: None,
-            }],
-        };
-        let expected = Some(String::from("/foo/bar"));
+        let config_start_directory = Some(String::from("/bar/baz"));
+        let window_start_directory = None;
+        let pane_start_directory = Some(String::from("/foo/bar"));
+
+        let expected = pane_start_directory.clone();
         let actual = build_pane_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
-            &config.windows[0].panes[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
+            &pane_start_directory,
         );
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_some() {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: Some(String::from("/bar/baz")),
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: vec![Pane {
-                    commands: vec![],
-                    name: None,
-                    start_directory: Some(String::from("/foo/bar")),
-                }],
-                start_directory: Some(String::from("/bar/baz")),
-            }],
-        };
-        let expected = Some(String::from("/foo/bar"));
+        let config_start_directory = Some(String::from("/bar/baz"));
+        let window_start_directory = Some(String::from("/bar/baz"));
+        let pane_start_directory = Some(String::from("/foo/bar"));
+
+        let expected = pane_start_directory.clone();
         let actual = build_pane_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
-            &config.windows[0].panes[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
+            &pane_start_directory,
         );
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_none() {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: None,
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: vec![Pane {
-                    commands: vec![],
-                    name: None,
-                    start_directory: None,
-                }],
-                start_directory: Some(String::from("/foo/bar")),
-            }],
-        };
-        let expected = Some(String::from("/foo/bar"));
+        let config_start_directory = None;
+        let window_start_directory = Some(String::from("/foo/bar"));
+        let pane_start_directory = None;
+
+        let expected = window_start_directory.clone();
         let actual = build_pane_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
-            &config.windows[0].panes[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
+            &pane_start_directory,
         );
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_some() {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: Some(String::from("/bar/baz")),
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: vec![Pane {
-                    commands: vec![],
-                    name: None,
-                    start_directory: None,
-                }],
-                start_directory: Some(String::from("/foo/bar")),
-            }],
-        };
-        let expected = Some(String::from("/foo/bar"));
+        let config_start_directory = Some(String::from("/bar/baz"));
+        let window_start_directory = Some(String::from("/foo/bar"));
+        let pane_start_directory = None;
+
+        let expected = window_start_directory.clone();
         let actual = build_pane_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
-            &config.windows[0].panes[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
+            &pane_start_directory,
         );
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_uses_config_sd_when_pane_sd_is_none_and_config_sd_is_none() {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: Some(String::from("/foo/bar")),
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: vec![Pane {
-                    commands: vec![],
-                    name: None,
-                    start_directory: None,
-                }],
-                start_directory: None,
-            }],
-        };
-        let expected = Some(String::from("/foo/bar"));
+        let config_start_directory = Some(String::from("/foo/bar"));
+        let window_start_directory = None;
+        let pane_start_directory = None;
+
+        let expected = config_start_directory.clone();
         let actual = build_pane_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
-            &config.windows[0].panes[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
+            &pane_start_directory,
         );
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_uses_no_pane_sd_when_none_are_set() {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: None,
-            windows: vec![Window {
-                layout: None,
-                name: String::from("a window"),
-                panes: vec![Pane {
-                    commands: vec![],
-                    name: None,
-                    start_directory: None,
-                }],
-                start_directory: None,
-            }],
-        };
+        let config_start_directory = None;
+        let window_start_directory = None;
+        let pane_start_directory = None;
+
         let actual = build_pane_start_directory(
-            &config.start_directory,
-            &config.windows[0].start_directory,
-            &config.windows[0].panes[0].start_directory,
+            &config_start_directory,
+            &window_start_directory,
+            &pane_start_directory,
         );
         assert!(actual.is_none());
     }
