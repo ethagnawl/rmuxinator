@@ -749,8 +749,8 @@ mod tests {
     #[test]
     fn it_converts_layout_to_string() {
         let layout = Layout::Tiled;
-        let actual = String::from("tiled");
-        let expected = layout.to_string();
+        let expected = String::from("tiled");
+        let actual = layout.to_string();
         assert_eq!(expected, actual);
     }
 
