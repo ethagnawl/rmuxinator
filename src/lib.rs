@@ -326,7 +326,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum CliCommand {
     Start,
 }
@@ -341,7 +341,7 @@ impl CliCommand {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CliArgs {
     command: CliCommand,
     project_name: String,
@@ -612,14 +612,13 @@ mod tests {
         let window_index = 2;
         let config_layout = None;
         let window_layout = None;
-        let expected = None;
         let actual = build_window_layout_args(
             &session_name,
             &window_index,
             &config_layout,
             &window_layout,
         );
-        assert_eq!(expected, actual);
+        assert!(actual.is_none());
     }
 
     #[test]
@@ -750,8 +749,8 @@ mod tests {
     #[test]
     fn it_converts_layout_to_string() {
         let layout = Layout::Tiled;
-        let expected = layout.to_string();
         let actual = String::from("tiled");
+        let expected = layout.to_string();
         assert_eq!(expected, actual);
     }
 
@@ -772,9 +771,8 @@ mod tests {
             }],
         };
 
-        let expected = None;
         let actual = build_session_start_directory(&config);
-        assert_eq!(expected, actual);
+        assert!(actual.is_none());
     }
 
     #[test]
@@ -830,12 +828,11 @@ mod tests {
                 start_directory: None,
             }],
         };
-        let expected = None;
         let actual = build_window_start_directory(
             &config.start_directory,
             &config.windows[0].start_directory,
         );
-        assert_eq!(expected, actual);
+        assert!(actual.is_none());
     }
 
     #[test]
@@ -1101,13 +1098,12 @@ mod tests {
                 start_directory: None,
             }],
         };
-        let expected = None;
         let actual = build_pane_start_directory(
             &config.start_directory,
             &config.windows[0].start_directory,
             &config.windows[0].panes[0].start_directory,
         );
-        assert_eq!(expected, actual);
+        assert!(actual.is_none());
     }
 
     #[test]
@@ -1159,7 +1155,6 @@ mod tests {
         let pane_index = 4;
         let pane_name_user_option = Some(String::from("pane_name_user_option"));
         let pane_name = None;
-        let expected = None;
         let actual = build_rename_pane_args(
             &session_name,
             window_index,
@@ -1167,7 +1162,7 @@ mod tests {
             &pane_name_user_option,
             &pane_name,
         );
-        assert_eq!(expected, actual);
+        assert!(actual.is_none());
     }
 
     #[test]
@@ -1178,7 +1173,6 @@ mod tests {
         let pane_index = 4;
         let pane_name_user_option = None;
         let pane_name = Some(String::from("pane-name"));
-        let expected = None;
         let actual = build_rename_pane_args(
             &session_name,
             window_index,
@@ -1186,50 +1180,46 @@ mod tests {
             &pane_name_user_option,
             &pane_name,
         );
-        assert_eq!(expected, actual);
+        assert!(actual.is_none());
     }
 
     #[test]
     fn it_accepts_valid_cli_command_arg() {
-        let expected = true;
-        let actual = CliCommand::new(&String::from("start")).is_ok();
-        assert_eq!(expected, actual);
+        let actual = CliCommand::new(&String::from("start"));
+        assert!(actual.is_ok());
     }
 
     #[test]
     fn it_rejects_valid_cli_command_arg() {
-        let expected = true;
-        let actual = CliCommand::new(&String::from("xtart")).is_ok();
-        assert_ne!(expected, actual);
+        let actual = CliCommand::new(&String::from("xtart"));
+        assert!(actual.is_err());
     }
 
     #[test]
     fn cli_args_requires_a_command_arg() {
         let args = vec![String::from("rmuxinator")];
-        let expected = String::from("Command is required.");
+        let expected = Err(String::from("Command is required."));
         let actual = CliArgs::new(&args);
-        assert_eq!(expected, actual.unwrap_err());
+        assert_eq!(expected, actual);
     }
 
     #[test]
     fn cli_args_requires_a_project_arg() {
         let args = vec![String::from("rmuxinator"), String::from("start")];
-        let expected = String::from("Project is required.");
+        let expected = Err(String::from("Project is required."));
         let actual = CliArgs::new(&args);
-        assert_eq!(expected, actual.unwrap_err());
+        assert_eq!(expected, actual);
     }
 
     #[test]
     fn test_for_tmux_returns_true_when_tmux_exists() {
-        let expected = true;
         let actual = test_for_tmux(String::from("tmux"));
-        assert_eq!(expected, actual);
+        assert!(actual);
     }
 
     #[test]
     fn test_for_tmux_returns_false_when_tmux_doesnt_exist() {
-        let expected = false;
         let actual = test_for_tmux(String::from("xmux"));
-        assert_eq!(expected, actual);
+        assert!(!actual);
     }
 }
