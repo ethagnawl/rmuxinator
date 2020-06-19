@@ -400,7 +400,7 @@ impl fmt::Display for Layout {
 
 type StartDirectory = Option<String>;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct Pane {
     commands: Vec<String>,
     name: Option<String>,
@@ -411,6 +411,7 @@ struct Pane {
 struct Window {
     layout: Option<Layout>,
     name: String,
+    #[serde(default)]
     panes: Vec<Pane>,
     start_directory: StartDirectory,
 }
