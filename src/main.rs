@@ -4,7 +4,7 @@ use rmuxinator::{run, test_for_tmux, CliArgs, Config};
 use std::{env, process};
 
 fn main() {
-    let tmux_exists = test_for_tmux(String::from("tmux"));
+    let tmux_exists = test_for_tmux("tmux");
 
     if !tmux_exists {
         eprintln!(
