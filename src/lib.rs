@@ -379,7 +379,7 @@ impl CliArgs {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 enum Layout {
     EvenHorizontal,
@@ -632,7 +632,7 @@ mod tests {
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
-            String::from("even-horizontal"), // <~~ TODO: LAZY
+            config_layout.unwrap().to_string(),
         ];
         let actual = build_window_layout_args(
             &session_name,
@@ -654,7 +654,7 @@ mod tests {
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
-            String::from("tiled"), // <~~ TODO: LAZY
+            window_layout.unwrap().to_string(),
         ];
         let actual = build_window_layout_args(
             &session_name,
@@ -675,7 +675,7 @@ mod tests {
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
-            String::from("even-horizontal"), // <~~ TODO: LAZY
+            window_layout.unwrap().to_string(),
         ];
         let actual = build_window_layout_args(
             &session_name,
