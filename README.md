@@ -162,3 +162,4 @@ compile successfully, but the program segfaulted immediately when executed.)
 - https://old.reddit.com/r/rust/comments/9io0z8/run_crosscompiled_code_on_rpi_0/
 - https://medium.com/@wizofe/cross-compiling-rust-for-arm-e-g-raspberry-pi-using-any-os-11711ebfc52b
 - https://devel.tech/tips/n/tMuXz2lj/the-power-of-tmux-hooks/
+- https://rust-cli.github.io/book/tutorial/testing.html

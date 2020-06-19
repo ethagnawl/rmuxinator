@@ -4,8 +4,10 @@ use std::io::Write;
 use std::process::Command;
 use tempfile::NamedTempFile;
 
-// Most of the following were cribbed from:
-// https://rust-cli.github.io/book/tutorial/testing.html
+// TODO:
+// - Test success scenarios
+// - Figure out how to mock tmux or use optional env var in main when testing
+// for its presence.
 
 #[test]
 fn no_args() -> Result<(), Box<dyn std::error::Error>> {
@@ -29,6 +31,20 @@ fn bad_arg() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+// TODO: This fails with: "open terminal failed: not a terminal"
+// #[test]
+// fn project_config_file_exists() -> Result<(), Box<dyn std::error::Error>>
+// {
+//     let mut cmd = Command::cargo_bin("rmuxinator")?;
+
+//     cmd.arg("start").arg("Example.toml");
+//     cmd.assert().failure().stderr(predicate::str::contains(
+//         "Problem parsing config file: Unable to open config file.",
+//     ));
+
+//     Ok(())
+// }
 
 #[test]
 fn project_config_file_doesnt_exist() -> Result<(), Box<dyn std::error::Error>>
@@ -59,6 +75,9 @@ fn invalid_toml() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn invalid_project_toml() -> Result<(), Box<dyn std::error::Error>> {
+    // This single example is not comprehensive, but is validation that the
+    // program will exit hard and fast if there are missing required fields or
+    // similar.
     let mut file = NamedTempFile::new()?;
     writeln!(
         file,
