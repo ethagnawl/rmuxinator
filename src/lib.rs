@@ -75,7 +75,7 @@ fn build_create_window_args(
 
 fn build_session_args(
     session_name: &str,
-    window_name: &Option<String>,
+    window_name: Option<String>,
     start_directory: &StartDirectory,
 ) -> Vec<String> {
     // Pass first window name to new-session, otherwise a default window gets
@@ -91,7 +91,7 @@ fn build_session_args(
 
     if let Some(_window_name) = window_name {
         session_args.push(String::from("-n"));
-        session_args.push(_window_name.to_string());
+        session_args.push(_window_name);
     }
 
     if let Some(start_directory_) = start_directory {
@@ -210,9 +210,15 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
     let session_start_directory = build_session_start_directory(&config);
 
+    let first_window = if let Some(window) = config.windows.get(0) {
+        window.name.clone()
+    } else {
+        None
+    };
+
     let create_session_args = build_session_args(
         session_name,
-        &config.windows[0].name,
+        first_window,
         &session_start_directory,
     );
     let error_message = String::from("Unable to create session.");
@@ -413,7 +419,7 @@ struct Pane {
     start_directory: StartDirectory,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct Window {
     layout: Option<Layout>,
     name: Option<String>,
@@ -511,6 +517,7 @@ pub struct Config {
     layout: Option<Layout>,
     name: String,
     start_directory: StartDirectory,
+    #[serde(default)]
     windows: Vec<Window>,
 }
 
@@ -587,7 +594,7 @@ mod tests {
             window_name.clone().unwrap(),
         ];
         let actual =
-            build_session_args(&session_name, &window_name, &start_directory);
+            build_session_args(&session_name, window_name, &start_directory);
         assert_eq!(expected, actual);
     }
 
@@ -603,7 +610,7 @@ mod tests {
             String::from(&session_name),
         ];
         let actual =
-            build_session_args(&session_name, &window_name, &start_directory);
+            build_session_args(&session_name, window_name, &start_directory);
         assert_eq!(expected, actual);
     }
 
@@ -624,7 +631,7 @@ mod tests {
             String::from(&start_directory_),
         ];
         let actual =
-            build_session_args(&session_name, &window_name, &start_directory);
+            build_session_args(&session_name, window_name, &start_directory);
         assert_eq!(expected, actual);
     }
 
