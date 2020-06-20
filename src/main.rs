@@ -1,32 +1,25 @@
 extern crate rmuxinator;
 
-use rmuxinator::{run, test_for_tmux, CliArgs, Config};
-use std::{env, process};
+use rmuxinator::{parse_args, run, test_for_tmux, CliCommand, Config};
+use std::env;
 
-fn main() {
+fn main() -> Result<(), String> {
     let tmux_exists = test_for_tmux("tmux");
 
     if !tmux_exists {
-        eprintln!(
-            "Unable to find tmux. Is it installed and available on $PATH?"
-        );
-        process::exit(1);
+        return Err(String::from(
+            "Unable to find tmux. Is it installed and available on $PATH?",
+        ));
     }
 
-    let raw_cli_args: Vec<String> = env::args().collect();
+    let cli_args = parse_args(env::args_os());
 
-    let cli_args = CliArgs::new(&raw_cli_args).unwrap_or_else(|error| {
-        eprintln!("Problem parsing CLI arguments: {}", error);
-        process::exit(1);
-    });
+    let config = Config::new(&cli_args)
+        .map_err(|error| format!("Problem parsing config file: {}", error))?;
 
-    let config = Config::new(cli_args).unwrap_or_else(|error| {
-        eprintln!("Problem parsing config file: {}", error);
-        process::exit(1);
-    });
-
-    if let Err(error) = run(config) {
-        eprintln!("Application error: {}", error);
-        process::exit(1);
+    match cli_args.command {
+        CliCommand::Start => {
+            run(config).map_err(|error| format!("Application error: {}", error))
+        }
     }
 }
