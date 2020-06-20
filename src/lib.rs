@@ -235,10 +235,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             // TODO: This is heavy handed and this logic is _sort of_ duped
             // in a few places. Maybe each type should have a method which is
             // able to compute its own starting directory?
-            let window_start_directory = build_window_start_directory(
-                &config.start_directory,
-                &window.start_directory,
-            );
+            let window_start_directory =
+                build_window_start_directory(&config.start_directory, &window.start_directory);
             let create_window_args = build_create_window_args(
                 session_name,
                 window_index,
@@ -267,12 +265,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             );
             if let Some(pane_start_directory) = pane_start_directory {
                 let command = format!("cd {}", pane_start_directory);
-                let pane_command_args = build_pane_command_args(
-                    session_name,
-                    &window_index,
-                    &pane_index,
-                    &command,
-                );
+                let pane_command_args =
+                    build_pane_command_args(session_name, &window_index, &pane_index, &command);
 
                 let error_message =
                     "Unable to run set start_directory command for pane.";
@@ -280,14 +274,10 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             }
 
             for (_, command) in pane.commands.iter().enumerate() {
-                let pane_command_args = build_pane_command_args(
-                    session_name,
-                    &window_index,
-                    &pane_index,
-                    command,
-                );
+                let pane_command_args =
+                    build_pane_command_args(session_name, &window_index, &pane_index, command);
                 let error_message = "Unable to run pane command.";
-                run_tmux_command(&pane_command_args, error_message);
+                run_tmux_command(&pane_command_args, &error_message);
             }
 
             let rename_pane_args = build_rename_pane_args(
@@ -303,12 +293,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             }
         }
 
-        let window_layout_args = build_window_layout_args(
-            session_name,
-            &window_index,
-            &config.layout,
-            &window.layout,
-        );
+        let window_layout_args =
+            build_window_layout_args(session_name, &window_index, &config.layout, &window.layout);
 
         if let Some(window_layout_args_) = window_layout_args {
             let error_message = "Unable to set window layout.";
@@ -320,8 +306,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     // return type. I think I either need to return the command and then spawn
     // or return the result of calling spawn.
     let attach_args = build_attach_args(&session_name);
-    let _attach_output =
-        Command::new("tmux").args(&attach_args).spawn()?.wait();
+    let _attach_output = Command::new("tmux").args(&attach_args).spawn()?.wait();
 
     Ok(())
 }
@@ -423,8 +408,7 @@ enum Layout {
 impl fmt::Display for Layout {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let pascal_case_hook_name = format!("{:?}", self);
-        let kebab_case_hook_name =
-            convert_pascal_case_to_kebab_case(&pascal_case_hook_name);
+        let kebab_case_hook_name = convert_pascal_case_to_kebab_case(&pascal_case_hook_name);
         write!(f, "{}", kebab_case_hook_name)
     }
 }
@@ -515,8 +499,7 @@ enum HookName {
 impl fmt::Display for HookName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let pascal_case_hook_name = format!("{:?}", self);
-        let kebab_case_hook_name =
-            convert_pascal_case_to_kebab_case(&pascal_case_hook_name);
+        let kebab_case_hook_name = convert_pascal_case_to_kebab_case(&pascal_case_hook_name);
         write!(f, "{}", kebab_case_hook_name)
     }
 }
@@ -610,8 +593,7 @@ mod tests {
             String::from("-n"),
             String::from(window_name),
         ];
-        let actual =
-            build_session_args(&session_name, &window_name, &start_directory);
+        let actual = build_session_args(&session_name, &window_name, &start_directory);
         assert_eq!(expected, actual);
     }
 
@@ -631,30 +613,24 @@ mod tests {
             String::from("-c"),
             String::from(start_directory_),
         ];
-        let actual =
-            build_session_args(&session_name, &window_name, &start_directory);
+        let actual = build_session_args(&session_name, &window_name, &start_directory);
         assert_eq!(expected, actual);
     }
 
     #[test]
-    fn it_builds_window_layout_args_without_a_window_layout_or_a_config_layout()
-    {
+    fn it_builds_window_layout_args_without_a_window_layout_or_a_config_layout() {
         let session_name = "foo";
         let window_index = 2;
         let config_layout = None;
         let window_layout = None;
-        let actual = build_window_layout_args(
-            &session_name,
-            &window_index,
-            &config_layout,
-            &window_layout,
-        );
-        assert!(actual.is_none());
+        let expected = None;
+        let actual =
+            build_window_layout_args(&session_name, &window_index, &config_layout, &window_layout);
+        assert_eq!(expected, actual);
     }
 
     #[test]
-    fn it_builds_window_layout_args_with_a_config_layout_and_no_window_layout()
-    {
+    fn it_builds_window_layout_args_with_a_config_layout_and_no_window_layout() {
         let session_name = "foo";
         let window_index = 2;
         let config_layout = Some(Layout::EvenHorizontal);
@@ -665,18 +641,13 @@ mod tests {
             format!("{}:{}", &session_name, &window_index),
             config_layout.unwrap().to_string(),
         ];
-        let actual = build_window_layout_args(
-            &session_name,
-            &window_index,
-            &config_layout,
-            &window_layout,
-        );
+        let actual =
+            build_window_layout_args(&session_name, &window_index, &config_layout, &window_layout);
         assert_eq!(expected, actual.unwrap());
     }
 
     #[test]
-    fn it_builds_window_layout_args_with_a_window_layout_and_no_config_layout()
-    {
+    fn it_builds_window_layout_args_with_a_window_layout_and_no_config_layout() {
         let session_name = "foo";
         let window_index = 2;
         let config_layout = None;
@@ -687,12 +658,8 @@ mod tests {
             format!("{}:{}", &session_name, &window_index),
             window_layout.unwrap().to_string(),
         ];
-        let actual = build_window_layout_args(
-            &session_name,
-            &window_index,
-            &config_layout,
-            &window_layout,
-        );
+        let actual =
+            build_window_layout_args(&session_name, &window_index, &config_layout, &window_layout);
         assert_eq!(expected, actual.unwrap());
     }
 
@@ -708,12 +675,8 @@ mod tests {
             format!("{}:{}", &session_name, &window_index),
             window_layout.unwrap().to_string(),
         ];
-        let actual = build_window_layout_args(
-            &session_name,
-            &window_index,
-            &config_layout,
-            &window_layout,
-        );
+        let actual =
+            build_window_layout_args(&session_name, &window_index, &config_layout, &window_layout);
         assert_eq!(expected, actual.unwrap());
     }
 
@@ -730,12 +693,8 @@ mod tests {
             String::from("-n"),
             String::from(window_name),
         ];
-        let actual = build_create_window_args(
-            &session_name,
-            window_index,
-            &window_name,
-            &start_directory,
-        );
+        let actual =
+            build_create_window_args(&session_name, window_index, &window_name, &start_directory);
         assert_eq!(expected, actual);
     }
 
@@ -755,12 +714,8 @@ mod tests {
             String::from("-c"),
             String::from("/tmp/neat"),
         ];
-        let actual = build_create_window_args(
-            &session_name,
-            window_index,
-            &window_name,
-            &start_directory,
-        );
+        let actual =
+            build_create_window_args(&session_name, window_index, &window_name, &start_directory);
         assert_eq!(expected, actual);
     }
 
@@ -786,8 +741,7 @@ mod tests {
     }
 
     #[test]
-    fn it_uses_no_start_directory_when_none_present_for_session_start_directory(
-    ) {
+    fn it_uses_no_start_directory_when_none_present_for_session_start_directory() {
         let config = Config {
             pane_name_user_option: None,
             hooks: Vec::new(),
@@ -823,8 +777,7 @@ mod tests {
     }
 
     #[test]
-    fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory(
-    ) {
+    fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory() {
         let config = Config {
             pane_name_user_option: None,
             hooks: Vec::new(),
@@ -1020,8 +973,7 @@ mod tests {
     }
 
     #[test]
-    fn it_builds_rename_pane_args_when_pane_name_and_pane_name_user_option_present(
-    ) {
+    fn it_builds_rename_pane_args_when_pane_name_and_pane_name_user_option_present() {
         let session_name = "session-name";
         let window_index = 3;
         let pane_index = 4;
@@ -1063,8 +1015,7 @@ mod tests {
     }
 
     #[test]
-    fn it_doesnt_build_rename_pane_args_when_no_pane_name_user_option_present()
-    {
+    fn it_doesnt_build_rename_pane_args_when_no_pane_name_user_option_present() {
         let session_name = "session-name";
         let window_index = 3;
         let pane_index = 4;
@@ -1103,8 +1054,6 @@ mod tests {
         let actual = parse_args(args);
         assert_eq!(expected, actual);
     }
-
-    // TODO: test incorrect usage with integration testing
 
     #[test]
     fn test_for_tmux_returns_true_when_tmux_exists() {
