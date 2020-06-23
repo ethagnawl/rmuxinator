@@ -120,7 +120,6 @@ pane-border-format config option)
 ## Still TODO:
 - consider building up and executing a single script (a la tmuxinator) instead
 of shelling out many times
-- make window name optional
 - support custom layouts?
 - break lib into components files (Config, CliArgs, etc.)
 - Do we need custom hooks, like tmuxinator uses for pre_window, project_start,
