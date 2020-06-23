@@ -186,7 +186,7 @@ fn build_rename_pane_args(
     }
 }
 
-pub fn test_for_tmux(tmux_command: String) -> bool {
+pub fn test_for_tmux(tmux_command: &str) -> bool {
     // TODO: an optarg would be nice, but they're not currently supported.
     // This parameter exists only to facilitate testing and the main caller
     // will never _need_ to pass anything non-standard.
@@ -209,13 +209,13 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         &config.windows[0].name,
         &session_start_directory,
     );
-    let error_message = String::from("Unable to create session.");
-    run_tmux_command(&create_session_args, &error_message);
+    let error_message = "Unable to create session.";
+    run_tmux_command(&create_session_args, error_message);
 
-    let hook_error_message = String::from("Unable to run set hook command");
+    let hook_error_message = "Unable to run set hook command";
     for hook in config.hooks {
         let hook_command = build_hook_args(&hook);
-        run_tmux_command(&hook_command, &hook_error_message);
+        run_tmux_command(&hook_command, hook_error_message);
     }
 
     for (window_index, window) in config.windows.iter().enumerate() {
@@ -241,18 +241,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 &window.name,
                 &window_start_directory,
             );
-            let error_message =
-                String::from("Unable to run create window command.");
-            run_tmux_command(&create_window_args, &error_message);
+            let error_message = "Unable to run create window command.";
+            run_tmux_command(&create_window_args, error_message);
         }
 
         for (pane_index, pane) in window.panes.iter().enumerate() {
             // Pane 0 is created by default by the containing window
             if pane_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
-                let error_message =
-                    String::from("Unable to run create pane command.");
-                run_tmux_command(&pane_args, &error_message);
+                let error_message = "Unable to run create pane command.";
+                run_tmux_command(&pane_args, error_message);
             }
 
             // Conditionally set start_directory for pane.
@@ -272,10 +270,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                     &command,
                 );
 
-                let error_message = String::from(
-                    "Unable to run set start_directory command for pane.",
-                );
-                run_tmux_command(&pane_command_args, &error_message);
+                let error_message =
+                    "Unable to run set start_directory command for pane.";
+                run_tmux_command(&pane_command_args, error_message);
             }
 
             for (_, command) in pane.commands.iter().enumerate() {
@@ -285,8 +282,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                     &pane_index,
                     command,
                 );
-                let error_message = String::from("Unable to run pane command.");
-                run_tmux_command(&pane_command_args, &error_message);
+                let error_message = "Unable to run pane command.";
+                run_tmux_command(&pane_command_args, error_message);
             }
 
             let rename_pane_args = build_rename_pane_args(
@@ -296,10 +293,9 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 &config.pane_name_user_option,
                 &pane.name.clone(),
             );
-            let error_message =
-                String::from("Unable to run rename pane command.");
+            let error_message = "Unable to run rename pane command.";
             if let Some(rename_pane_args_) = rename_pane_args {
-                run_tmux_command(&rename_pane_args_, &error_message);
+                run_tmux_command(&rename_pane_args_, error_message);
             }
         }
 
@@ -311,8 +307,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         );
 
         if let Some(window_layout_args_) = window_layout_args {
-            let error_message = String::from("Unable to set window layout.");
-            run_tmux_command(&window_layout_args_, &error_message)
+            let error_message = "Unable to set window layout.";
+            run_tmux_command(&window_layout_args_, error_message)
         }
     }
 
@@ -552,32 +548,32 @@ mod tests {
 
     #[test]
     fn it_converts_a_pascal_case_string_to_a_kebab_case_string() {
-        let pascal = String::from("KebabCase");
-        let expected = String::from("kebab-case");
+        let pascal = "KebabCase";
+        let expected = "kebab-case";
         let actual = convert_pascal_case_to_kebab_case(&pascal);
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_no_ops_on_a_non_pascal_case_string() {
-        let pascal = String::from("foo");
-        let expected = String::from("foo");
+        let pascal = "foo";
+        let expected = "foo";
         let actual = convert_pascal_case_to_kebab_case(&pascal);
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn it_builds_session_args_without_start_directory() {
-        let session_name = String::from("a session");
-        let window_name = String::from("a window");
+        let session_name = "a session";
+        let window_name = "a window";
         let start_directory = None;
         let expected = vec![
             String::from("new-session"),
             String::from("-d"),
             String::from("-s"),
-            String::from(&session_name),
+            String::from(session_name),
             String::from("-n"),
-            String::from(&window_name),
+            String::from(window_name),
         ];
         let actual =
             build_session_args(&session_name, &window_name, &start_directory);
@@ -586,19 +582,19 @@ mod tests {
 
     #[test]
     fn it_builds_session_args_with_start_directory() {
-        let session_name = String::from("a session");
-        let window_name = String::from("a window");
+        let session_name = "a session";
+        let window_name = "a window";
         let start_directory_ = String::from("/foo/bar");
         let start_directory = Some(start_directory_.clone());
         let expected = vec![
             String::from("new-session"),
             String::from("-d"),
             String::from("-s"),
-            String::from(&session_name),
+            String::from(session_name),
             String::from("-n"),
-            String::from(&window_name),
+            String::from(window_name),
             String::from("-c"),
-            String::from(&start_directory_),
+            String::from(start_directory_),
         ];
         let actual =
             build_session_args(&session_name, &window_name, &start_directory);
@@ -608,7 +604,7 @@ mod tests {
     #[test]
     fn it_builds_window_layout_args_without_a_window_layout_or_a_config_layout()
     {
-        let session_name = String::from("foo");
+        let session_name = "foo";
         let window_index = 2;
         let config_layout = None;
         let window_layout = None;
@@ -624,7 +620,7 @@ mod tests {
     #[test]
     fn it_builds_window_layout_args_with_a_config_layout_and_no_window_layout()
     {
-        let session_name = String::from("foo");
+        let session_name = "foo";
         let window_index = 2;
         let config_layout = Some(Layout::EvenHorizontal);
         let window_layout = None;
@@ -646,7 +642,7 @@ mod tests {
     #[test]
     fn it_builds_window_layout_args_with_a_window_layout_and_no_config_layout()
     {
-        let session_name = String::from("foo");
+        let session_name = "foo";
         let window_index = 2;
         let config_layout = None;
         let window_layout = Some(Layout::Tiled);
@@ -667,7 +663,7 @@ mod tests {
 
     #[test]
     fn it_builds_window_layout_args_with_a_window_layout_and_a_config_layout() {
-        let session_name = String::from("foo");
+        let session_name = "foo";
         let window_index = 2;
         let config_layout = Some(Layout::Tiled);
         let window_layout = Some(Layout::EvenHorizontal);
@@ -688,8 +684,8 @@ mod tests {
 
     #[test]
     fn it_builds_window_args_without_a_start_directory() {
-        let session_name = String::from("a session");
-        let window_name = String::from("a window");
+        let session_name = "a session";
+        let window_name = "a window";
         let window_index = 42;
         let start_directory = None;
         let expected = vec![
@@ -697,7 +693,7 @@ mod tests {
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
             String::from("-n"),
-            String::from(&window_name),
+            String::from(window_name),
         ];
         let actual = build_create_window_args(
             &session_name,
@@ -710,8 +706,8 @@ mod tests {
 
     #[test]
     fn it_builds_window_args_with_a_start_directory() {
-        let session_name = String::from("a session");
-        let window_name = String::from("a window");
+        let session_name = "a session";
+        let window_name = "a window";
         let window_index = 42;
         let start_directory = Some(String::from("/tmp/neat"));
 
@@ -720,7 +716,7 @@ mod tests {
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
             String::from("-n"),
-            String::from(&window_name),
+            String::from(window_name),
             String::from("-c"),
             String::from("/tmp/neat"),
         ];
@@ -735,12 +731,12 @@ mod tests {
 
     #[test]
     fn it_builds_attach_args() {
-        let session_name = String::from("a session");
+        let session_name = "a session";
         let expected = vec![
             String::from("-u"),
             String::from("attach-session"),
             String::from("-t"),
-            String::from(&session_name),
+            String::from(session_name),
         ];
         let actual = build_attach_args(&session_name);
         assert_eq!(expected, actual);
@@ -991,7 +987,7 @@ mod tests {
     #[test]
     fn it_builds_rename_pane_args_when_pane_name_and_pane_name_user_option_present(
     ) {
-        let session_name = String::from("session-name");
+        let session_name = "session-name";
         let window_index = 3;
         let pane_index = 4;
         let pane_name_user_option = Some(String::from("pane_name_user_option"));
@@ -1016,7 +1012,7 @@ mod tests {
 
     #[test]
     fn it_doesnt_build_rename_pane_args_when_no_pane_name_present() {
-        let session_name = String::from("session-name");
+        let session_name = "session-name";
         let window_index = 3;
         let pane_index = 4;
         let pane_name_user_option = Some(String::from("pane_name_user_option"));
@@ -1034,7 +1030,7 @@ mod tests {
     #[test]
     fn it_doesnt_build_rename_pane_args_when_no_pane_name_user_option_present()
     {
-        let session_name = String::from("session-name");
+        let session_name = "session-name";
         let window_index = 3;
         let pane_index = 4;
         let pane_name_user_option = None;
@@ -1079,13 +1075,13 @@ mod tests {
 
     #[test]
     fn test_for_tmux_returns_true_when_tmux_exists() {
-        let actual = test_for_tmux(String::from("tmux"));
+        let actual = test_for_tmux("tmux");
         assert!(actual);
     }
 
     #[test]
     fn test_for_tmux_returns_false_when_tmux_doesnt_exist() {
-        let actual = test_for_tmux(String::from("xmux"));
+        let actual = test_for_tmux("xmux");
         assert!(!actual);
     }
 }
