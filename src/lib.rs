@@ -243,6 +243,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 &window.name,
                 &window_start_directory,
             );
+
             let error_message = "Unable to run create window command.";
             run_tmux_command(&create_window_args, error_message);
         }
@@ -251,6 +252,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             // Pane 0 is created by default by the containing window
             if pane_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
+
                 let error_message = "Unable to run create pane command.";
                 run_tmux_command(&pane_args, error_message);
             }
@@ -269,8 +271,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                     build_pane_command_args(session_name, &window_index, &pane_index, &command);
 
                 let error_message =
-                    "Unable to run set start_directory command for pane.";
-                run_tmux_command(&pane_command_args, error_message);
+                     "Unable to run set start_directory command for pane.";
+                run_tmux_command(&pane_command_args, &error_message);
             }
 
             for (_, command) in pane.commands.iter().enumerate() {
@@ -623,10 +625,9 @@ mod tests {
         let window_index = 2;
         let config_layout = None;
         let window_layout = None;
-        let expected = None;
         let actual =
             build_window_layout_args(&session_name, &window_index, &config_layout, &window_layout);
-        assert_eq!(expected, actual);
+        assert!(actual.is_none());
     }
 
     #[test]
