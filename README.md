@@ -85,11 +85,11 @@ Optional attributes will be noted below.
 - `name` (string; must match existing tmux hook (e.g. `after-select-pane`); see tmux docs)
 
 ##### Windows
-- `name` (string)
 - `panes` (array; see dedicated entry)
 
 ###### Optional
 - `layout` (string; preset tmux layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled")
+- `name` (string)
 - `start_directory` (string)
 
 ##### Panes
