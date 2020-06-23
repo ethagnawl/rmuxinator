@@ -573,6 +573,23 @@ mod tests {
     }
 
     #[test]
+    fn it_builds_session_args_with_window_name() {
+        let session_name = String::from("a session");
+        let window_name = Some(String::from("a window"));
+        let start_directory = None;
+        let expected = vec![
+            String::from("new-session"),
+            String::from("-d"),
+            String::from("-s"),
+            String::from(&session_name),
+            String::from("-n"),
+            window_name.clone().unwrap(),
+        ];
+        let actual = build_session_args(&session_name, window_name, &start_directory);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn it_builds_session_args_without_window_name() {
         let session_name = String::from("a session");
         let window_name = None;
