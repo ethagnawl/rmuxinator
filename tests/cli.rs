@@ -22,7 +22,7 @@ FLAGS:
 
 SUBCOMMANDS:
     help     Prints this message or the help of the given subcommand(s)
-    start    Start a new tmux session"#;
+    start    Start a tmux session using a path to a project config file"#;
 
 #[test]
 fn no_args() -> Result<(), Box<dyn std::error::Error>> {
@@ -60,10 +60,10 @@ fn missing_project() -> Result<(), Box<dyn std::error::Error>> {
         .failure()
         .stderr(predicate::str::contains(
             r#"error: The following required arguments were not provided:
-    <PROJECT_FILE>
+    <PROJECT_CONFIG_FILE>
 
 USAGE:
-    rmuxinator start <PROJECT_FILE>
+    rmuxinator start <PROJECT_CONFIG_FILE>
 
 For more information try --help"#,
         ));

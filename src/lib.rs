@@ -270,8 +270,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, &command);
 
-                let error_message =
-                     "Unable to run set start_directory command for pane.";
+                let error_message = "Unable to run set start_directory command for pane.";
                 run_tmux_command(&pane_command_args, &error_message);
             }
 
@@ -325,10 +324,10 @@ where
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("start")
-                .about("Start a new tmux session")
+                .about("Start a tmux session using a path to a project config file")
                 .arg(
-                    Arg::with_name("PROJECT_FILE")
-                        .help("The session project file to launch")
+                    Arg::with_name("PROJECT_CONFIG_FILE")
+                        .help("The path to the project config file")
                         .required(true),
                 ),
         )
@@ -349,7 +348,7 @@ where
     };
 
     let project_name = command_matches
-        .value_of("PROJECT_FILE")
+        .value_of("PROJECT_CONFIG_FILE")
         .expect("project file is required by clap")
         .to_string();
 
@@ -798,29 +797,21 @@ mod tests {
     }
 
     #[test]
-    fn it_uses_no_start_directory_when_none_present_for_window_start_directory()
-    {
+    fn it_uses_no_start_directory_when_none_present_for_window_start_directory() {
         let config_start_directory = None;
         let window_start_directory = None;
 
-        let actual = build_window_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-        );
+        let actual = build_window_start_directory(&config_start_directory, &window_start_directory);
         assert!(actual.is_none());
     }
 
     #[test]
-    fn it_uses_windows_start_directory_over_configs_start_directory_for_window_start_directory(
-    ) {
+    fn it_uses_windows_start_directory_over_configs_start_directory_for_window_start_directory() {
         let config_start_directory = Some(String::from("/this/is/ignored"));
         let window_start_directory = Some(String::from("/bar/baz"));
 
         let expected = window_start_directory.clone();
-        let actual = build_window_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-        );
+        let actual = build_window_start_directory(&config_start_directory, &window_start_directory);
         assert_eq!(expected, actual);
     }
 
@@ -831,10 +822,7 @@ mod tests {
         let window_start_directory = None;
 
         let expected = config_start_directory.clone();
-        let actual = build_window_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-        );
+        let actual = build_window_start_directory(&config_start_directory, &window_start_directory);
         assert_eq!(expected, actual);
     }
 
