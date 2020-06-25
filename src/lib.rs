@@ -1,9 +1,13 @@
-use serde::Deserialize;
 use std::error::Error;
+use std::ffi::OsString;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::process::Command;
+use std::str::FromStr;
+
+use clap::{App, AppSettings, Arg, SubCommand};
+use serde::Deserialize;
 
 extern crate toml;
 
@@ -248,6 +252,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 &window.name,
                 &window_start_directory,
             );
+
             let error_message = "Unable to run create window command.";
             run_tmux_command(&create_window_args, error_message);
         }
@@ -256,6 +261,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             // Pane 0 is created by default by the containing window
             if pane_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
+
                 let error_message = "Unable to run create pane command.";
                 run_tmux_command(&pane_args, error_message);
             }
@@ -281,7 +287,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, command);
                 let error_message = "Unable to run pane command.";
-                run_tmux_command(&pane_command_args, error_message);
+                run_tmux_command(&pane_command_args, &error_message);
             }
 
             let rename_pane_args = build_rename_pane_args(
@@ -315,57 +321,88 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+pub fn parse_args<I, T>(args: I) -> CliArgs
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    let app_matches = App::new(clap::crate_name!())
+        .version(clap::crate_version!())
+        .author(clap::crate_authors!())
+        .about(clap::crate_description!())
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .subcommand(
+            SubCommand::with_name("start")
+                .about("Start a tmux session using a path to a project config file")
+                .arg(
+                    Arg::with_name("PROJECT_CONFIG_FILE")
+                        .help("The path to the project config file")
+                        .required(true),
+                ),
+        )
+        .get_matches_from(args);
+
+    let (command_name, command_matches) = match app_matches.subcommand() {
+        (name, Some(matches)) => (name, matches),
+        (_, None) => {
+            panic!("Subcommand should be forced by clap");
+        }
+    };
+
+    let command = match CliCommand::from_str(command_name) {
+        Ok(command) => command,
+        Err(error) => {
+            panic!(error.to_string());
+        }
+    };
+
+    let project_name = command_matches
+        .value_of("PROJECT_CONFIG_FILE")
+        .expect("project file is required by clap")
+        .to_string();
+
+    CliArgs {
+        command,
+        project_name,
+    }
+}
+
 #[derive(Debug, PartialEq)]
-enum CliCommand {
+pub enum CliCommand {
     Start,
 }
 
-impl CliCommand {
-    fn new(maybe_command: &str) -> Result<CliCommand, String> {
-        match maybe_command {
+#[derive(Debug)]
+pub struct ParseCliCommandError;
+
+// TODO: this boilerplate can be cut down by using a third-party crate
+impl fmt::Display for ParseCliCommandError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Missing implementation for subcommand, please file a bug report"
+        )
+    }
+}
+
+impl Error for ParseCliCommandError {}
+
+impl FromStr for CliCommand {
+    type Err = ParseCliCommandError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
             "start" => Ok(Self::Start),
-            // TODO: present static list of valid options instead?
-            _ => Err(format!("Command ({}) not recognized.", maybe_command)),
+            // This should only ever be reached if subcommands are added to
+            // clap and not here
+            _ => Err(ParseCliCommandError),
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct CliArgs {
-    command: CliCommand,
-    project_name: String,
-}
-
-impl CliArgs {
-    pub fn new(args: &[String]) -> Result<CliArgs, String> {
-        // TODO: None of this scales very well, but I wanted to see if I could
-        // avoid using a third-party library. Maybe it's worth trying clap or
-        // quicli.
-
-        let args_ = args.to_owned();
-        // drop entrypoint (e.g. ./rmuxinator)
-        let mut args_ = args_.iter().skip(1);
-        let command_ = args_.next();
-        let project_ = args_.next();
-
-        if command_.is_none() {
-            return Err(String::from("Command is required."));
-        }
-
-        if project_.is_none() {
-            return Err(String::from("Project is required."));
-        }
-
-        let maybe_command = CliCommand::new(command_.unwrap());
-        if let Ok(maybe_command_) = maybe_command {
-            Ok(CliArgs {
-                command: maybe_command_,
-                project_name: project_.unwrap().clone(),
-            })
-        } else {
-            Err(maybe_command.unwrap_err())
-        }
-    }
+    pub command: CliCommand,
+    pub project_name: String,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -497,10 +534,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(cli_args: CliArgs) -> Result<Config, String> {
+    pub fn new(cli_args: &CliArgs) -> Result<Config, String> {
         // Need to return String in failure case because toml::from_str may
         // return a toml::de::Error.
-        let mut config_file = match File::open(cli_args.project_name) {
+        let mut config_file = match File::open(&cli_args.project_name) {
             Ok(file) => file,
             Err(_) => return Err(String::from("Unable to open config file.")),
         };
@@ -1028,29 +1065,25 @@ mod tests {
 
     #[test]
     fn it_accepts_valid_cli_command_arg() {
-        let actual = CliCommand::new(&String::from("start"));
-        assert!(actual.is_ok());
-    }
-
-    #[test]
-    fn it_rejects_valid_cli_command_arg() {
-        let actual = CliCommand::new(&String::from("xtart"));
-        assert!(actual.is_err());
-    }
-
-    #[test]
-    fn cli_args_requires_a_command_arg() {
-        let args = vec![String::from("rmuxinator")];
-        let expected = Err(String::from("Command is required."));
-        let actual = CliArgs::new(&args);
+        let expected = CliCommand::Start;
+        let actual = CliCommand::from_str("start").unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
-    fn cli_args_requires_a_project_arg() {
-        let args = vec![String::from("rmuxinator"), String::from("start")];
-        let expected = Err(String::from("Project is required."));
-        let actual = CliArgs::new(&args);
+    fn it_rejects_invalid_cli_command_arg() {
+        let actual = CliCommand::from_str("xtart");
+        assert!(actual.is_err());
+    }
+
+    #[test]
+    fn it_accepts_correct_cli_args() {
+        let expected = CliArgs {
+            command: CliCommand::Start,
+            project_name: String::from("Foo.toml"),
+        };
+        let args = vec!["rmuxinator", "start", "Foo.toml"];
+        let actual = parse_args(args);
         assert_eq!(expected, actual);
     }
 

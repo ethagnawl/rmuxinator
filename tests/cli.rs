@@ -1,5 +1,6 @@
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
+use std::env;
 use std::io::Write;
 use std::process::Command;
 use tempfile::NamedTempFile;
@@ -11,23 +12,75 @@ use tempfile::NamedTempFile;
 
 #[test]
 fn no_args() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("rmuxinator")?;
+    let long_help = format!(
+        r#"{} {}
+{}
+{}
 
-    cmd.assert().failure().stderr(predicate::str::contains(
-        "Problem parsing CLI arguments: Command is required.",
-    ));
+USAGE:
+    {} <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+SUBCOMMANDS:
+    help     Prints this message or the help of the given subcommand(s)
+    start    Start a tmux session using a path to a project config file"#,
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION"),
+        env!("CARGO_PKG_AUTHORS"),
+        env!("CARGO_PKG_DESCRIPTION"),
+        env!("CARGO_PKG_NAME"),
+    );
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains(long_help));
 
     Ok(())
 }
 
 #[test]
-fn bad_arg() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("rmuxinator")?;
+fn bad_command() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
 
-    cmd.arg("bork");
-    cmd.assert().failure().stderr(predicate::str::contains(
-        "Problem parsing CLI arguments: Project is required.",
-    ));
+    let bad_command_help = format!(
+        r#"error: Found argument 'bork' which wasn't expected, or isn't valid in this context
+
+USAGE:
+    {} <SUBCOMMAND>
+
+For more information try --help"#,
+        env!("CARGO_PKG_NAME"),
+    );
+
+    cmd.arg("bork").arg("Example.toml");
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains(bad_command_help));
+
+    Ok(())
+}
+
+#[test]
+fn missing_project() -> Result<(), Box<dyn std::error::Error>> {
+    let bad_arg_help = format!(
+        r#"error: The following required arguments were not provided:
+    <PROJECT_CONFIG_FILE>
+
+USAGE:
+    {} start <PROJECT_CONFIG_FILE>
+
+For more information try --help"#,
+        env!("CARGO_PKG_NAME")
+    );
+    Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+        .arg("start")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(bad_arg_help));
 
     Ok(())
 }
@@ -36,7 +89,7 @@ fn bad_arg() -> Result<(), Box<dyn std::error::Error>> {
 // #[test]
 // fn project_config_file_exists() -> Result<(), Box<dyn std::error::Error>>
 // {
-//     let mut cmd = Command::cargo_bin("rmuxinator")?;
+//     let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
 
 //     cmd.arg("start").arg("Example.toml");
 //     cmd.assert().failure().stderr(predicate::str::contains(
@@ -47,9 +100,8 @@ fn bad_arg() -> Result<(), Box<dyn std::error::Error>> {
 // }
 
 #[test]
-fn project_config_file_doesnt_exist() -> Result<(), Box<dyn std::error::Error>>
-{
-    let mut cmd = Command::cargo_bin("rmuxinator")?;
+fn project_config_file_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
 
     cmd.arg("start").arg("DontExist.toml");
     cmd.assert().failure().stderr(predicate::str::contains(
@@ -64,7 +116,7 @@ fn invalid_toml() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = NamedTempFile::new()?;
     writeln!(file, "Toml ain't Yaml")?;
 
-    let mut cmd = Command::cargo_bin("rmuxinator")?;
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
     cmd.arg("start").arg(file.path());
     cmd.assert().failure().stderr(predicate::str::contains(
         "Problem parsing config file: expected an equals, found an identifier at line 1",
@@ -84,7 +136,7 @@ fn invalid_project_toml() -> Result<(), Box<dyn std::error::Error>> {
         "xname = \"this won't work because 'name' is required\""
     )?;
 
-    let mut cmd = Command::cargo_bin("rmuxinator")?;
+    let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
     cmd.arg("start").arg(file.path());
     cmd.assert().failure().stderr(predicate::str::contains(
         "Problem parsing config file: missing field `name`",
