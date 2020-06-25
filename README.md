@@ -128,7 +128,6 @@ mapping is not 1:1 and users could have to result to hacks like having hooks
 remove themselves in order to prevent duplicate events.
 - remove/replace Debugs
 - CliArgs.project_name should change to reflect that it's a file path
-- consider presenting list of valid cli commands if constructor fails
 - looks like format doesn't consume values, so refs aren't (always?) necessary
 - use feature detection to conditionally apply/opt out of certain features
 (user options)
@@ -144,7 +143,7 @@ necessary)
 - other CLI commands? (debug (for sure), stop (nice to have), create, edit,
 delete (maybe))
 - use named args in calls to format! where possible
-- document config options and provide sample
+- document config options and provide generic sample
 - cut v0.0.1 release and publish binaries
 
 ## Platforms
