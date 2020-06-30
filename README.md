@@ -99,6 +99,18 @@ Optional attributes will be noted below.
 - `name` (string)
 - `start_directory` (string)
 
+## Known Issues
+### Indexes
+rmuxinator currently assumes that both `base-index` and `pane-base-index` are
+0. This will be handled programatically in a future release, but for the time
+being, it can be worked around by either removing overrides from .tmux.conf or
+by adding the following:
+```
+set -g base-index 0
+set -g pane-base-index 0
+```
+
+
 ## Status
 This project is currently a proof of concept and I'll be duplicating tmuxinator
 features (and adding additional improvements) as I can find time. Right now,
