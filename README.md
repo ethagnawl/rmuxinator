@@ -99,7 +99,7 @@ Optional attributes will be noted below.
 - `name` (string)
 - `start_directory` (string)
 
-## Known Issues
+## Known Issues and Workarounds
 ### Indexes
 rmuxinator currently assumes that both `base-index` and `pane-base-index` are
 0. This will be handled programatically in a future release, but for the time
