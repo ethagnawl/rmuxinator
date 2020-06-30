@@ -1,6 +1,6 @@
 extern crate rmuxinator;
 
-use rmuxinator::{parse_args, run, test_for_tmux, CliCommand, Config};
+use rmuxinator::{parse_args, run_debug, run_start, test_for_tmux, CliCommand, Config};
 use std::env;
 
 fn main() -> Result<(), String> {
@@ -19,7 +19,10 @@ fn main() -> Result<(), String> {
 
     match cli_args.command {
         CliCommand::Start => {
-            run(config).map_err(|error| format!("Application error: {}", error))
+            run_start(config).map_err(|error| format!("Application error: {}", error))
+        }
+        CliCommand::Debug => {
+            run_debug(config).map_err(|error| format!("Application error: {}", error))
         }
     }
 }

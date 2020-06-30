@@ -11,6 +11,21 @@ use tempfile::NamedTempFile;
 // for its presence.
 
 #[test]
+fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Error>> {
+    let mut file = NamedTempFile::new()?;
+    writeln!(file, "name = \"debug project\"")?;
+
+    Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+        .arg("debug")
+        .arg(file.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("new-session -d -s debug project"));
+
+    Ok(())
+}
+
+#[test]
 fn no_args() -> Result<(), Box<dyn std::error::Error>> {
     let long_help = format!(
         r#"{} {}
@@ -25,6 +40,7 @@ FLAGS:
     -V, --version    Prints version information
 
 SUBCOMMANDS:
+    debug    Review the commands that would be used to start a tmux session using a path to a project config file
     help     Prints this message or the help of the given subcommand(s)
     start    Start a tmux session using a path to a project config file"#,
         env!("CARGO_PKG_NAME"),
