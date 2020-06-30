@@ -1,7 +1,7 @@
 layout = "main-horizontal"
 name = "example"
 pane_name_user_option = "custom_pane_title"
-start_directory = "/home/peter/projects/vim"
+start_directory = "$HOME/Documents"
 
 [[hooks]]
   command = "run-shell \"tmux display-message 'Hi from pane-focus-in hook!'\""
@@ -9,38 +9,35 @@ start_directory = "/home/peter/projects/vim"
 
 [[windows]]
   layout = "tiled"
-  name = "one"
-  start_directory = "/home/peter/projects/sample-project"
+  name = "window one"
+  start_directory = "$HOME/Downloads"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
   name = "Work"
+  start_directory = "$HOME/Downloads"
 
   [[windows.panes]]
   commands = ["echo pane-two"]
   name = "Music"
-  start_directory = "/home/peter/projects/rmuxinator/src"
+  start_directory = "$HOME/Music"
 
   [[windows.panes]]
   commands = ["echo pane-three"]
   name = "RSS"
 
   [[windows.panes]]
-  commands = ["echo hi one", "echo intermediate one", "echo bye one"]
+  commands = ["echo pane-four"]
 
 [[windows]]
-  name = "two"
-  start_directory = "/home/peter/projects/sample-project"
+  name = "window two"
+  start_directory = "/var/www"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
 
   [[windows.panes]]
   commands = ["echo pane-two"]
-  start_directory = "/home/peter/projects/rmuxinator/src"
 
   [[windows.panes]]
   commands = ["echo pane-three"]
-
-  [[windows.panes]]
-  commands = ["echo hi one", "echo intermediate one", "echo bye one"]
