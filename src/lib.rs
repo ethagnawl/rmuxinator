@@ -349,7 +349,7 @@ where
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("debug")
-                .about("Review the commands that would be used to start a tmux session using a path to a project config file")
+                .about("Review the tmux commands that would be used to start and configure a tmux session using a path to a project config file")
                 .arg(
                     Arg::with_name("PROJECT_CONFIG_FILE")
                         .help("The path to the project config file")
