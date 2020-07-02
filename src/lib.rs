@@ -326,12 +326,13 @@ pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
-    let commands = convert_config_to_tmux_commands(&config);
-    let flattened_commands = commands
+    let commands = convert_config_to_tmux_commands(&config)
         .iter()
         .map(|v| v.join(" "))
         .collect::<Vec<String>>();
-    println!("{:#?}", flattened_commands);
+    for command in commands.iter() {
+        println!("tmux {}", command);
+    }
 
     Ok(())
 }

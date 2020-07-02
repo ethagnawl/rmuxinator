@@ -13,14 +13,27 @@ use tempfile::NamedTempFile;
 #[test]
 fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = NamedTempFile::new()?;
-    writeln!(file, "name = \"debug project\"")?;
+    writeln!(
+        file,
+        "name = \"debug\"
+        [[windows]]
+          name = \"one\"
+        [[windows]]
+          name = \"two\"
+        "
+    )?;
 
+    // TODO: The indentation used below is very touchy. There must be a better
+    // nicer, more robust solution to formatting multiline strings.
     Command::cargo_bin(env!("CARGO_PKG_NAME"))?
         .arg("debug")
         .arg(file.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("new-session -d -s debug project"));
+        .stdout(predicate::str::contains(
+            "tmux new-session -d -s debug -n one
+tmux new-window -t debug:1 -n two",
+        ));
 
     Ok(())
 }
