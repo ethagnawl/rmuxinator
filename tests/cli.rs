@@ -53,7 +53,7 @@ FLAGS:
     -V, --version    Prints version information
 
 SUBCOMMANDS:
-    debug    Review the tmux commands that would be used to start and configure a tmux session using a path to a
+    debug    Print the tmux commands that would be used to start and configure a tmux session using a path to a
              project config file
     help     Prints this message or the help of the given subcommand(s)
     start    Start a tmux session using a path to a project config file"#,
