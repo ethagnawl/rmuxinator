@@ -11,11 +11,10 @@ use serde::Deserialize;
 
 extern crate toml;
 
-fn run_tmux_command(command: &[String], error_message: &str) {
-    Command::new("tmux")
-        .args(command)
-        .output()
-        .expect(error_message);
+fn run_tmux_command(command: &[String]) {
+    // TODO: Validate Command status and either panic or log useful error
+    // message.
+    Command::new("tmux").args(command).output().unwrap();
 }
 
 fn build_pane_args(session_name: &str, window_index: &usize) -> Vec<String> {
@@ -313,7 +312,7 @@ pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
     let commands = convert_config_to_tmux_commands(&config);
 
     for command in commands.iter() {
-        run_tmux_command(&command, "error");
+        run_tmux_command(&command);
     }
 
     // TODO: Move this into helper. First attempt resulted in error caused by
