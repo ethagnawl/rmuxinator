@@ -23,7 +23,7 @@ fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Erro
         "
     )?;
 
-    // TODO: The indentation used below is very touchy. There must be a better
+    // TODO: The indentation used below is very fragile. There must be a better
     // nicer, more robust solution to formatting multiline strings.
     Command::cargo_bin(env!("CARGO_PKG_NAME"))?
         .arg("debug")
