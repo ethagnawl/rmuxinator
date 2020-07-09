@@ -227,7 +227,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
 
     for hook in config.hooks.iter() {
         let hook_command = build_hook_args(&hook);
-        commands.push(hook_command.clone());
+        commands.push(hook_command);
     }
 
     for (window_index, window) in config.windows.iter().enumerate() {
@@ -252,15 +252,14 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
                 &window_start_directory,
             );
 
-            commands.push(create_window_args.clone());
+            commands.push(create_window_args);
         }
 
         for (pane_index, pane) in window.panes.iter().enumerate() {
             // Pane 0 is created by default by the containing window
             if pane_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
-
-                commands.push(pane_args.clone());
+                commands.push(pane_args);
             }
 
             // Conditionally set start_directory for pane.
@@ -275,14 +274,13 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
                 let command = format!("cd {}", pane_start_directory);
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, &command);
-
-                commands.push(pane_command_args.clone());
+                commands.push(pane_command_args);
             }
 
             for (_, command) in pane.commands.iter().enumerate() {
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, command);
-                commands.push(pane_command_args.clone());
+                commands.push(pane_command_args);
             }
 
             let rename_pane_args = build_rename_pane_args(
@@ -293,7 +291,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
                 &pane.name.clone(),
             );
             if let Some(rename_pane_args_) = rename_pane_args {
-                commands.push(rename_pane_args_.clone());
+                commands.push(rename_pane_args_);
             }
         }
 
@@ -301,7 +299,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
             build_window_layout_args(session_name, &window_index, &config.layout, &window.layout);
 
         if let Some(window_layout_args_) = window_layout_args {
-            commands.push(window_layout_args_.clone());
+            commands.push(window_layout_args_);
         }
     }
 
