@@ -13,15 +13,14 @@ use tempfile::NamedTempFile;
 #[test]
 fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = NamedTempFile::new()?;
-    writeln!(
-        file,
-        "name = \"debug\"
+    let file_contents = r#"
+        name = "debug"
         [[windows]]
-          name = \"one\"
+          name = "one"
         [[windows]]
-          name = \"two\"
-        "
-    )?;
+          name = "two"
+        "#;
+    writeln!(file, "{}", file_contents)?;
 
     // TODO: The indentation used below is very fragile. There must be a better
     // nicer, more robust solution to formatting multiline strings.
