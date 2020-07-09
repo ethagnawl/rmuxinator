@@ -309,7 +309,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
 pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
     let commands = convert_config_to_tmux_commands(&config);
 
-    for command in commands.iter() {
+    for command in commands {
         run_tmux_command(&command);
     }
 
@@ -323,12 +323,8 @@ pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
-    let commands = convert_config_to_tmux_commands(&config)
-        .iter()
-        .map(|v| v.join(" "))
-        .collect::<Vec<String>>();
-    for command in commands.iter() {
-        println!("tmux {}", command);
+    for command in convert_config_to_tmux_commands(&config) {
+        println!("tmux {}", command.join(" "));
     }
 
     Ok(())
