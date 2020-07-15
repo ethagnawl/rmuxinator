@@ -335,6 +335,9 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    let project_config_file_arg = Arg::with_name("PROJECT_CONFIG_FILE")
+        .help("The path to the project config file")
+        .required(true);
     let app_matches = App::new(clap::crate_name!())
         .version(clap::crate_version!())
         .author(clap::crate_authors!())
@@ -343,20 +346,12 @@ where
         .subcommand(
             SubCommand::with_name("debug")
                 .about("Print the tmux commands that would be used to start and configure a tmux session using a path to a project config file")
-                .arg(
-                    Arg::with_name("PROJECT_CONFIG_FILE")
-                        .help("The path to the project config file")
-                        .required(true),
-                ),
+                .arg(&project_config_file_arg)
         )
         .subcommand(
             SubCommand::with_name("start")
                 .about("Start a tmux session using a path to a project config file")
-                .arg(
-                    Arg::with_name("PROJECT_CONFIG_FILE")
-                        .help("The path to the project config file")
-                        .required(true),
-                ),
+                .arg(&project_config_file_arg)
         )
         .get_matches_from(args);
 
