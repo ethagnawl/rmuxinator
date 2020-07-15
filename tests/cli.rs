@@ -11,6 +11,33 @@ use tempfile::NamedTempFile;
 // for its presence.
 
 #[test]
+fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Error>> {
+    let mut file = NamedTempFile::new()?;
+    let file_contents = r#"
+        name = "debug"
+        [[windows]]
+          name = "one"
+        [[windows]]
+          name = "two"
+        "#;
+    writeln!(file, "{}", file_contents)?;
+
+    // TODO: The indentation used below is very fragile. There must be a better
+    // nicer, more robust solution to formatting multiline strings.
+    Command::cargo_bin(env!("CARGO_PKG_NAME"))?
+        .arg("debug")
+        .arg(file.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "tmux new-session -d -s debug -n one
+tmux new-window -t debug:1 -n two",
+        ));
+
+    Ok(())
+}
+
+#[test]
 fn no_args() -> Result<(), Box<dyn std::error::Error>> {
     let long_help = format!(
         r#"{} {}
@@ -25,6 +52,8 @@ FLAGS:
     -V, --version    Prints version information
 
 SUBCOMMANDS:
+    debug    Print the tmux commands that would be used to start and configure a tmux session using a path to a
+             project config file
     help     Prints this message or the help of the given subcommand(s)
     start    Start a tmux session using a path to a project config file"#,
         env!("CARGO_PKG_NAME"),

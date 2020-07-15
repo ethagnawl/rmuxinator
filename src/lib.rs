@@ -11,11 +11,10 @@ use serde::Deserialize;
 
 extern crate toml;
 
-fn run_tmux_command(command: &[String], error_message: &str) {
-    Command::new("tmux")
-        .args(command)
-        .output()
-        .expect(error_message);
+fn run_tmux_command(command: &[String]) {
+    // TODO: Validate Command status and either panic or log useful error
+    // message.
+    Command::new("tmux").args(command).output().unwrap();
 }
 
 fn build_pane_args(session_name: &str, window_index: &usize) -> Vec<String> {
@@ -209,7 +208,9 @@ pub fn test_for_tmux(tmux_command: &str) -> bool {
     output.status.success()
 }
 
-pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
+    let mut commands = vec![];
+
     let session_name = &config.name;
 
     let session_start_directory = build_session_start_directory(&config);
@@ -222,13 +223,11 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
     let create_session_args =
         build_session_args(session_name, first_window, &session_start_directory);
-    let error_message = "Unable to create session.";
-    run_tmux_command(&create_session_args, error_message);
+    commands.push(create_session_args);
 
-    let hook_error_message = "Unable to run set hook command";
-    for hook in config.hooks {
+    for hook in config.hooks.iter() {
         let hook_command = build_hook_args(&hook);
-        run_tmux_command(&hook_command, hook_error_message);
+        commands.push(hook_command);
     }
 
     for (window_index, window) in config.windows.iter().enumerate() {
@@ -253,17 +252,14 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 &window_start_directory,
             );
 
-            let error_message = "Unable to run create window command.";
-            run_tmux_command(&create_window_args, error_message);
+            commands.push(create_window_args);
         }
 
         for (pane_index, pane) in window.panes.iter().enumerate() {
             // Pane 0 is created by default by the containing window
             if pane_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
-
-                let error_message = "Unable to run create pane command.";
-                run_tmux_command(&pane_args, error_message);
+                commands.push(pane_args);
             }
 
             // Conditionally set start_directory for pane.
@@ -278,16 +274,13 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 let command = format!("cd {}", pane_start_directory);
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, &command);
-
-                let error_message = "Unable to run set start_directory command for pane.";
-                run_tmux_command(&pane_command_args, error_message);
+                commands.push(pane_command_args);
             }
 
             for (_, command) in pane.commands.iter().enumerate() {
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, command);
-                let error_message = "Unable to run pane command.";
-                run_tmux_command(&pane_command_args, &error_message);
+                commands.push(pane_command_args);
             }
 
             let rename_pane_args = build_rename_pane_args(
@@ -297,9 +290,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 &config.pane_name_user_option,
                 &pane.name.clone(),
             );
-            let error_message = "Unable to run rename pane command.";
             if let Some(rename_pane_args_) = rename_pane_args {
-                run_tmux_command(&rename_pane_args_, error_message);
+                commands.push(rename_pane_args_);
             }
         }
 
@@ -307,16 +299,33 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             build_window_layout_args(session_name, &window_index, &config.layout, &window.layout);
 
         if let Some(window_layout_args_) = window_layout_args {
-            let error_message = "Unable to set window layout.";
-            run_tmux_command(&window_layout_args_, error_message)
+            commands.push(window_layout_args_);
         }
+    }
+
+    commands
+}
+
+pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
+    let commands = convert_config_to_tmux_commands(&config);
+
+    for command in commands {
+        run_tmux_command(&command);
     }
 
     // TODO: Move this into helper. First attempt resulted in error caused by
     // return type. I think I either need to return the command and then spawn
     // or return the result of calling spawn.
-    let attach_args = build_attach_args(&session_name);
+    let attach_args = build_attach_args(&config.name);
     let _attach_output = Command::new("tmux").args(&attach_args).spawn()?.wait();
+
+    Ok(())
+}
+
+pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
+    for command in convert_config_to_tmux_commands(&config) {
+        println!("tmux {}", command.join(" "));
+    }
 
     Ok(())
 }
@@ -326,19 +335,23 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    let project_config_file_arg = Arg::with_name("PROJECT_CONFIG_FILE")
+        .help("The path to the project config file")
+        .required(true);
     let app_matches = App::new(clap::crate_name!())
         .version(clap::crate_version!())
         .author(clap::crate_authors!())
         .about(clap::crate_description!())
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
+            SubCommand::with_name("debug")
+                .about("Print the tmux commands that would be used to start and configure a tmux session using a path to a project config file")
+                .arg(&project_config_file_arg)
+        )
+        .subcommand(
             SubCommand::with_name("start")
                 .about("Start a tmux session using a path to a project config file")
-                .arg(
-                    Arg::with_name("PROJECT_CONFIG_FILE")
-                        .help("The path to the project config file")
-                        .required(true),
-                ),
+                .arg(&project_config_file_arg)
         )
         .get_matches_from(args);
 
@@ -369,6 +382,7 @@ where
 
 #[derive(Debug, PartialEq)]
 pub enum CliCommand {
+    Debug,
     Start,
 }
 
@@ -391,6 +405,7 @@ impl FromStr for CliCommand {
     type Err = ParseCliCommandError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
+            "debug" => Ok(Self::Debug),
             "start" => Ok(Self::Start),
             // This should only ever be reached if subcommands are added to
             // clap and not here
@@ -1061,6 +1076,26 @@ mod tests {
             &pane_name,
         );
         assert!(actual.is_none());
+    }
+
+    #[test]
+    fn it_computes_the_expected_commands() {
+        let config = Config {
+            hooks: vec![],
+            layout: None,
+            name: String::from("most basic config"),
+            pane_name_user_option: None,
+            start_directory: None,
+            windows: vec![],
+        };
+        let expected = vec![vec![
+            String::from("new-session"),
+            String::from("-d"),
+            String::from("-s"),
+            String::from("most basic config"),
+        ]];
+        let actual = convert_config_to_tmux_commands(&config);
+        assert_eq!(expected, actual);
     }
 
     #[test]

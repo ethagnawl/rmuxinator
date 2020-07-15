@@ -99,6 +99,16 @@ Optional attributes will be noted below.
 - `name` (string)
 - `start_directory` (string)
 
+### Commands
+#### `debug`
+Print the tmux commands that would be used to start and configure a tmux
+session using a path to a project config file:
+`rmuxinator debug Example.toml`
+
+#### `start`
+Start a tmux session using a path to a project config file:
+`rmuxinator start Example.toml`
+
 ## Known Issues and Workarounds
 ### Indexes
 rmuxinator currently assumes that both `base-index` and `pane-base-index` are
@@ -109,7 +119,6 @@ by adding the following:
 set -g base-index 0
 set -g pane-base-index 0
 ```
-
 
 ## Status
 This project is currently a proof of concept and I'll be duplicating tmuxinator
@@ -152,10 +161,9 @@ require writing a custom Serde deserializer for the Config type.
 - attach if session exists instead of creating sesssion
 - search for project name instead of parsing config (I'm not convinced this is
 necessary)
-- other CLI commands? (debug (for sure), stop (nice to have), create, edit,
-delete (maybe))
+- other CLI commands? (stop session, create/edit/delete project)
 - use named args in calls to format! where possible
-- document config options and provide generic sample
+- document config options
 - cut v0.0.1 release and publish binaries
 
 ## Platforms
