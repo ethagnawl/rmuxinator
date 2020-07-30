@@ -139,32 +139,30 @@ pane-border-format config option)
 - wiring up optional tmux event hooks/callbacks
 
 ## Still TODO:
-- consider building up and executing a single script (a la tmuxinator) instead
+- Consider building up and executing a single script (a la tmuxinator) instead
 of shelling out many times
-- support custom layouts?
-- break lib into components files (Config, CliArgs, etc.)
+- Support custom layouts?
+- Break lib into component files (Config, CliArgs, etc.)
 - Do we need custom hooks, like tmuxinator uses for pre_window, project_start,
 etc.? I was hoping to leverage tmux's hooks and save the trouble, but the
 mapping is not 1:1 and users could have to result to hacks like having hooks
 remove themselves in order to prevent duplicate events.
-- remove/replace Debugs
 - CliArgs.project_name should change to reflect that it's a file path
-- looks like format doesn't consume values, so refs aren't (always?) necessary
-- use feature detection to conditionally apply/opt out of certain features
+- Looks like format doesn't consume values, so refs aren't (always?) necessary
+- Use feature detection to conditionally apply/opt out of certain features
 (user options)
-- integration tests which verify compound/derived values (e.g. start_directory)
-- integration tests which verify calls to tmux?
-- handle shell failures -- `tmux kill-window` was failing silently
+- Integration tests which verify compound/derived values (e.g. start_directory)
+- Integration tests which verify calls to tmux?
+- Handle shell failures -- `tmux kill-window` was failing silently
 - Can commands can all be moved into structs and computed up front? This might
 require writing a custom Serde deserializer for the Config type.
-- select window on attach (can this be handled by a pre-existing hook?)
-- attach if session exists instead of creating sesssion
-- search for project name instead of parsing config (I'm not convinced this is
+- Select window on attach (can this be handled by a pre-existing hook?)
+- Attach if session exists instead of creating sesssion
+- Search for project name instead of parsing config (I'm not convinced this is
 necessary)
-- other CLI commands? (stop session, create/edit/delete project)
-- use named args in calls to format! where possible
-- document config options
-- cut v0.0.1 release and publish binaries
+- Other CLI commands? (stop session, create/edit/delete project)
+- Use named args in calls to format! where possible
+- Cut v0.0.1 release and publish binaries
 
 ## Platforms
 Here are the platforms rmuxinator is known to work on:
