@@ -5,15 +5,18 @@
 </p>
 
 ## What is this?
-This project aims to be a clone of [tmuxinator](https://github.com/tmuxinator/tmuxinator), which allows users to define
-tmux project profiles (e.g. open two windows, split each into three panes and run specific commands in each). It is written in Rust and will be more dependable (config is typechecked where possible) and simpler to install. It's also a great excuse for me to learn more about Rust, its ecosystem and compiling/distributing binaries for various platforms.
+This project aims to be a successor to [tmuxinator](https://github.com/tmuxinator/tmuxinator), which allows users to
+define tmux project profiles (e.g. open two windows, split each into three
+panes and run a series of commands in each). It is written in Rust and will be
+more dependable (config is typechecked where possible) and simpler to install.
+It's also a great excuse for me to learn more about Rust, its ecosystem and
+compiling/distributing binaries for various platforms.
 
 ## How does it work?
 - install tmux (>= 2.8), rust and cargo
 - build and run with: `cargo build && ./target/debug/rmuxinator start Example.toml`
 
 ## Documentation
-
 
 ### Project Config
 Projects are defined using toml.
@@ -122,12 +125,12 @@ set -g pane-base-index 0
 
 ## Status
 This project is currently a proof of concept and I'll be duplicating tmuxinator
-features (and adding additional improvements) as I can find time. Right now,
-it's capable of:
+features and adding additional improvements as I can find time. Right now, it's
+capable of:
 - parsing a TOML project config file
 - starting a named tmux session
 - setting a default layout for project windows
-- setting the default cwd
+- setting the default working directory
 - creating windows
 - setting cwd for windows
 - setting window layout
@@ -158,8 +161,8 @@ remove themselves in order to prevent duplicate events.
 require writing a custom Serde deserializer for the Config type.
 - Select window on attach (can this be handled by a pre-existing hook?)
 - Attach if session exists instead of creating sesssion
-- Search for project name instead of parsing config (I'm not convinced this is
-necessary)
+- Search for project config file on disk (XDG_CONFIG?) instead of parsing
+config (I'm not convinced this is necessary)
 - Other CLI commands? (stop session, create/edit/delete project)
 - Use named args in calls to format! where possible
 - Cut v0.0.1 release and publish binaries
