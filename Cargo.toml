@@ -3,7 +3,7 @@ name = "rmuxinator"
 version = "0.1.0"
 authors = ["Peter Doherty <pdoherty@protonmail.com>"]
 edition = "2018"
-description = "tmux project configuration CLI utility"
+description = "tmux project configuration utility"
 
 [dependencies]
 clap = "2.33"
