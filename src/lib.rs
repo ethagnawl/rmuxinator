@@ -129,36 +129,35 @@ fn build_attach_args(session_name: &str) -> Vec<String> {
     ]
 }
 
-fn build_session_start_directory(config: &Config) -> StartDirectory {
-    // Compute start_directory for session/first window using:
-    // window.start_directory || config.start_directory
-    if !config.windows.is_empty() {
-        config.windows[0].start_directory.clone()
-    } else {
-        config.start_directory.clone()
+fn propagate_start_directories(config: &mut Config) {
+    // So if you think about the tmux session as a tree where the session is the root, each window
+    // as a child of the session, and each pane as a child of the window then the start directory
+    // simply follows 2 steps in order:
+    // 1. The child inherits the parents start directory is the child's is `None`
+    // 2. The parent's start directory is forced by it's first child's if they exist
+    for window in config.windows.iter_mut() {
+        // Step 1
+        if window.start_directory.is_none() {
+            window.start_directory = config.start_directory.clone();
+        }
+
+        for pane in window.panes.iter_mut() {
+            // Step 1
+            if pane.start_directory.is_none() {
+                pane.start_directory = window.start_directory.clone();
+            }
+        }
+
+        // Step 2
+        if let Some(pane) = window.panes.get(0) {
+            window.start_directory = pane.start_directory.clone();
+        }
     }
-}
 
-fn build_window_start_directory(
-    config_start_directory: &StartDirectory,
-    window_start_directory: &StartDirectory,
-) -> StartDirectory {
-    let config_start_directory_ = config_start_directory.clone();
-    let window_start_directory_ = window_start_directory.clone();
-    window_start_directory_.or(config_start_directory_)
-}
-
-fn build_pane_start_directory(
-    config_start_directory: &StartDirectory,
-    window_start_directory: &StartDirectory,
-    pane_start_directory: &StartDirectory,
-) -> StartDirectory {
-    let config_start_directory_ = config_start_directory.clone();
-    let window_start_directory_ = window_start_directory.clone();
-    let pane_start_directory_ = pane_start_directory.clone();
-    pane_start_directory_
-        .or(window_start_directory_)
-        .or(config_start_directory_)
+    // Step 2
+    if let Some(window) = config.windows.get(0) {
+        config.start_directory = window.start_directory.clone();
+    }
 }
 
 fn build_hook_args(hook: &Hook) -> Vec<String> {
@@ -208,12 +207,12 @@ pub fn test_for_tmux(tmux_command: &str) -> bool {
     output.status.success()
 }
 
-fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
+fn convert_config_to_tmux_commands(mut config: Config) -> Vec<Vec<String>> {
     let mut commands = vec![];
 
-    let session_name = &config.name;
+    let session_name = config.name.clone();
 
-    let session_start_directory = build_session_start_directory(&config);
+    propagate_start_directories(&mut config);
 
     let first_window = if let Some(window) = config.windows.get(0) {
         window.name.clone()
@@ -222,7 +221,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
     };
 
     let create_session_args =
-        build_session_args(session_name, first_window, &session_start_directory);
+        build_session_args(&session_name, first_window, &config.start_directory);
     commands.push(create_session_args);
 
     for hook in config.hooks.iter() {
@@ -240,16 +239,13 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
         // The alternative approach would be more explicit and preferable, so
         // maybe it's worth revisiting.
         if window_index != 0 {
-            // TODO: This is heavy handed and this logic is _sort of_ duped
-            // in a few places. Maybe each type should have a method which is
-            // able to compute its own starting directory?
-            let window_start_directory =
-                build_window_start_directory(&config.start_directory, &window.start_directory);
+            // TODO: getting pretty close to where it would makes sense for the window itself to
+            //       have a `build_create_args` method.
             let create_window_args = build_create_window_args(
-                session_name,
+                &session_name,
                 window_index,
                 &window.name,
-                &window_start_directory,
+                &window.start_directory,
             );
 
             commands.push(create_window_args);
@@ -258,33 +254,28 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
         for (pane_index, pane) in window.panes.iter().enumerate() {
             // Pane 0 is created by default by the containing window
             if pane_index > 0 {
-                let pane_args = build_pane_args(session_name, &window_index);
+                let pane_args = build_pane_args(&session_name, &window_index);
                 commands.push(pane_args);
             }
 
             // Conditionally set start_directory for pane.
             // Unfortunately, this can't be done cleanly using create_pane
             // because pane 0 is created implicitly.
-            let pane_start_directory = build_pane_start_directory(
-                &config.start_directory,
-                &window.start_directory,
-                &pane.start_directory,
-            );
-            if let Some(pane_start_directory) = pane_start_directory {
+            if let Some(pane_start_directory) = &pane.start_directory {
                 let command = format!("cd {}", pane_start_directory);
                 let pane_command_args =
-                    build_pane_command_args(session_name, &window_index, &pane_index, &command);
+                    build_pane_command_args(&session_name, &window_index, &pane_index, &command);
                 commands.push(pane_command_args);
             }
 
-            for (_, command) in pane.commands.iter().enumerate() {
+            for command in pane.commands.iter() {
                 let pane_command_args =
-                    build_pane_command_args(session_name, &window_index, &pane_index, command);
+                    build_pane_command_args(&session_name, &window_index, &pane_index, command);
                 commands.push(pane_command_args);
             }
 
             let rename_pane_args = build_rename_pane_args(
-                session_name,
+                &session_name,
                 window_index,
                 pane_index,
                 &config.pane_name_user_option,
@@ -296,7 +287,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
         }
 
         let window_layout_args =
-            build_window_layout_args(session_name, &window_index, &config.layout, &window.layout);
+            build_window_layout_args(&session_name, &window_index, &config.layout, &window.layout);
 
         if let Some(window_layout_args_) = window_layout_args {
             commands.push(window_layout_args_);
@@ -307,7 +298,8 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
 }
 
 pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
-    let commands = convert_config_to_tmux_commands(&config);
+    let session_name = config.name.clone();
+    let commands = convert_config_to_tmux_commands(config);
 
     for command in commands {
         run_tmux_command(&command);
@@ -316,14 +308,14 @@ pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
     // TODO: Move this into helper. First attempt resulted in error caused by
     // return type. I think I either need to return the command and then spawn
     // or return the result of calling spawn.
-    let attach_args = build_attach_args(&config.name);
+    let attach_args = build_attach_args(&session_name);
     let _attach_output = Command::new("tmux").args(&attach_args).spawn()?.wait();
 
     Ok(())
 }
 
 pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
-    for command in convert_config_to_tmux_commands(&config) {
+    for command in convert_config_to_tmux_commands(config) {
         println!("tmux {}", command.join(" "));
     }
 
@@ -420,7 +412,7 @@ pub struct CliArgs {
     pub project_name: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 enum Layout {
     EvenHorizontal,
@@ -440,14 +432,14 @@ impl fmt::Display for Layout {
 
 type StartDirectory = Option<String>;
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 struct Pane {
     commands: Vec<String>,
     name: Option<String>,
     start_directory: StartDirectory,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 struct Window {
     layout: Option<Layout>,
     name: Option<String>,
@@ -456,7 +448,7 @@ struct Window {
     start_directory: StartDirectory,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 enum HookName {
     // TODO: Does this make sense? If not, document exclusion.
@@ -530,13 +522,13 @@ impl fmt::Display for HookName {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 struct Hook {
     command: String,
     name: HookName,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Config {
     pane_name_user_option: Option<String>,
     #[serde(default)]
@@ -799,208 +791,63 @@ mod tests {
     }
 
     #[test]
-    fn it_uses_no_start_directory_when_none_present_for_session_start_directory() {
-        let config = Config {
+    fn propagate_start_directories_kitchen_sink() {
+        let mut actual = Config {
             pane_name_user_option: None,
             hooks: Vec::new(),
             layout: None,
             name: String::from("foo"),
-            start_directory: None,
-            windows: vec![Window {
-                layout: None,
-                name: Some(String::from("a window")),
-                panes: Vec::new(),
-                start_directory: None,
-            }],
+            start_directory: Some("/session/dir".to_string()),
+            windows: vec![
+                Window {
+                    panes: vec![
+                        Pane {
+                            start_directory: Some("/pane/dir".to_string()),
+                            ..Pane::default()
+                        },
+                        Pane::default(),
+                    ],
+                    ..Window::default()
+                },
+                Window {
+                    start_directory: Some("/window/dir".to_string()),
+                    ..Window::default()
+                },
+            ],
         };
 
-        let actual = build_session_start_directory(&config);
-        assert!(actual.is_none());
-    }
+        propagate_start_directories(&mut actual);
 
-    #[test]
-    fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_session_start_directory(
-    ) {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: Some(String::from("/foo/bar")),
-            windows: Vec::new(),
+        let expected = Config {
+            // Inherits from child
+            start_directory: Some("/pane/dir".to_string()),
+            windows: vec![
+                Window {
+                    // Inherits from child
+                    start_directory: Some("/pane/dir".to_string()),
+                    panes: vec![
+                        Pane {
+                            start_directory: Some("/pane/dir".to_string()),
+                            ..Pane::default()
+                        },
+                        Pane {
+                            // Inherits from parent
+                            start_directory: Some("/session/dir".to_string()),
+                            ..Pane::default()
+                        },
+                    ],
+                    ..Window::default()
+                },
+                Window {
+                    // Untouched
+                    start_directory: Some("/window/dir".to_string()),
+                    ..Window::default()
+                },
+            ],
+            ..actual.clone()
         };
-        let expected = Some(String::from("/foo/bar"));
-        let actual = build_session_start_directory(&config);
+
         assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory() {
-        let config = Config {
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: Some(String::from("/this/is/ignored")),
-            windows: vec![Window {
-                layout: None,
-                name: Some(String::from("a window")),
-                panes: Vec::new(),
-                start_directory: Some(String::from("/bar/baz")),
-            }],
-        };
-        let expected = Some(String::from("/bar/baz"));
-        let actual = build_session_start_directory(&config);
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_no_start_directory_when_none_present_for_window_start_directory() {
-        let config_start_directory = None;
-        let window_start_directory = None;
-
-        let actual = build_window_start_directory(&config_start_directory, &window_start_directory);
-        assert!(actual.is_none());
-    }
-
-    #[test]
-    fn it_uses_windows_start_directory_over_configs_start_directory_for_window_start_directory() {
-        let config_start_directory = Some(String::from("/this/is/ignored"));
-        let window_start_directory = Some(String::from("/bar/baz"));
-
-        let expected = window_start_directory.clone();
-        let actual = build_window_start_directory(&config_start_directory, &window_start_directory);
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_window_start_directory(
-    ) {
-        let config_start_directory = Some(String::from("/foo/bar"));
-        let window_start_directory = None;
-
-        let expected = config_start_directory.clone();
-        let actual = build_window_start_directory(&config_start_directory, &window_start_directory);
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_none() {
-        let config_start_directory = None;
-        let window_start_directory = None;
-        let pane_start_directory = Some(String::from("/foo/bar"));
-
-        let expected = pane_start_directory.clone();
-        let actual = build_pane_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-            &pane_start_directory,
-        );
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_none() {
-        let config_start_directory = None;
-        let window_start_directory = Some(String::from("/bar/baz"));
-        let pane_start_directory = Some(String::from("/foo/bar"));
-
-        let expected = pane_start_directory.clone();
-        let actual = build_pane_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-            &pane_start_directory,
-        );
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_pane_sd_when_window_sd_is_none_and_config_sd_is_some() {
-        let config_start_directory = Some(String::from("/bar/baz"));
-        let window_start_directory = None;
-        let pane_start_directory = Some(String::from("/foo/bar"));
-
-        let expected = pane_start_directory.clone();
-        let actual = build_pane_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-            &pane_start_directory,
-        );
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_pane_sd_when_window_sd_is_some_and_config_sd_is_some() {
-        let config_start_directory = Some(String::from("/bar/baz"));
-        let window_start_directory = Some(String::from("/bar/baz"));
-        let pane_start_directory = Some(String::from("/foo/bar"));
-
-        let expected = pane_start_directory.clone();
-        let actual = build_pane_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-            &pane_start_directory,
-        );
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_none() {
-        let config_start_directory = None;
-        let window_start_directory = Some(String::from("/foo/bar"));
-        let pane_start_directory = None;
-
-        let expected = window_start_directory.clone();
-        let actual = build_pane_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-            &pane_start_directory,
-        );
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_window_sd_when_pane_sd_is_none_and_config_sd_is_some() {
-        let config_start_directory = Some(String::from("/bar/baz"));
-        let window_start_directory = Some(String::from("/foo/bar"));
-        let pane_start_directory = None;
-
-        let expected = window_start_directory.clone();
-        let actual = build_pane_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-            &pane_start_directory,
-        );
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_config_sd_when_pane_sd_is_none_and_config_sd_is_none() {
-        let config_start_directory = Some(String::from("/foo/bar"));
-        let window_start_directory = None;
-        let pane_start_directory = None;
-
-        let expected = config_start_directory.clone();
-        let actual = build_pane_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-            &pane_start_directory,
-        );
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn it_uses_no_pane_sd_when_none_are_set() {
-        let config_start_directory = None;
-        let window_start_directory = None;
-        let pane_start_directory = None;
-
-        let actual = build_pane_start_directory(
-            &config_start_directory,
-            &window_start_directory,
-            &pane_start_directory,
-        );
-        assert!(actual.is_none());
     }
 
     #[test]
@@ -1094,7 +941,7 @@ mod tests {
             String::from("-s"),
             String::from("most basic config"),
         ]];
-        let actual = convert_config_to_tmux_commands(&config);
+        let actual = convert_config_to_tmux_commands(config);
         assert_eq!(expected, actual);
     }
 
