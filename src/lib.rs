@@ -365,7 +365,7 @@ where
     let command = match CliCommand::from_str(command_name) {
         Ok(command) => command,
         Err(error) => {
-            panic!(error.to_string());
+            panic!("{}", error.to_string());
         }
     };
 
