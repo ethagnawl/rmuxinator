@@ -159,13 +159,15 @@ remove themselves in order to prevent duplicate events.
 - Handle shell failures -- `tmux kill-window` was failing silently
 - Can commands can all be moved into structs and computed up front? This might
 require writing a custom Serde deserializer for the Config type.
+- Start detached tmux session
 - Select window on attach (can this be handled by a pre-existing hook?)
 - Attach if session exists instead of creating sesssion
 - Search for project config file on disk (XDG_CONFIG?) instead of parsing
 config (I'm not convinced this is necessary)
 - Other CLI commands? (stop session, create/edit/delete project)
 - Use named args in calls to format! where possible
-- Cut v0.0.1 release and publish binaries
+- Cut v0.2.0 release and publish binaries
+- Create separate Config constructors for fields (i.e. library) and config file (i.e. binary)
 
 ## Platforms
 Here are the platforms rmuxinator is known to work on:

@@ -7,7 +7,7 @@ use std::process::Command;
 use std::str::FromStr;
 
 use clap::{App, AppSettings, Arg, SubCommand};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 extern crate toml;
 
@@ -420,9 +420,9 @@ pub struct CliArgs {
     pub project_name: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-enum Layout {
+pub enum Layout {
     EvenHorizontal,
     EvenVertical,
     MainHorizontal,
@@ -440,23 +440,23 @@ impl fmt::Display for Layout {
 
 type StartDirectory = Option<String>;
 
-#[derive(Debug, Default, Deserialize)]
-struct Pane {
-    commands: Vec<String>,
-    name: Option<String>,
-    start_directory: StartDirectory,
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct Pane {
+    pub commands: Vec<String>,
+    pub name: Option<String>,
+    pub start_directory: StartDirectory,
 }
 
-#[derive(Debug, Default, Deserialize)]
-struct Window {
-    layout: Option<Layout>,
-    name: Option<String>,
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct Window {
+    pub layout: Option<Layout>,
+    pub name: Option<String>,
     #[serde(default)]
-    panes: Vec<Pane>,
-    start_directory: StartDirectory,
+    pub panes: Vec<Pane>,
+    pub start_directory: StartDirectory,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 enum HookName {
     // TODO: Does this make sense? If not, document exclusion.
@@ -530,22 +530,22 @@ impl fmt::Display for HookName {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct Hook {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Hook {
     command: String,
     name: HookName,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    pane_name_user_option: Option<String>,
+    pub pane_name_user_option: Option<String>,
     #[serde(default)]
-    hooks: Vec<Hook>,
-    layout: Option<Layout>,
-    name: String,
-    start_directory: StartDirectory,
+    pub hooks: Vec<Hook>,
+    pub layout: Option<Layout>,
+    pub name: String,
+    pub start_directory: StartDirectory,
     #[serde(default)]
-    windows: Vec<Window>,
+    pub windows: Vec<Window>,
 }
 
 impl Config {
