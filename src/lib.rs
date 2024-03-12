@@ -552,7 +552,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new_from_config_path(config_path: &String) -> Result<Config, String> {
+    pub fn new_from_file_path(config_path: &String) -> Result<Config, String> {
         // Need to return String in failure case because toml::from_str may
         // return a toml::de::Error.
         let mut config_file = match File::open(&config_path) {
