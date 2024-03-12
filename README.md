@@ -122,6 +122,53 @@ session using a path to a project config file:
 Start a tmux session using a path to a project config file:
 `rmuxinator start Example.toml`
 
+### Use as a library
+rmuxinator can also be used as a library by other programs.
+
+There are two ways to achieve this:
+
+#### Config::new_from_config_path
+This option accepts a path to an rmuxinator config file and is how the rmuxinator binary works. This is how this project's binary entrypoint works.
+
+Example:
+
+```
+let config = rmuxinator::Config::new_from_config_path(&String::from("/home/pi/foo.toml")).map_err(|error| format!("Problem parsing config file: {}", error))?;
+rmuxinator::run_start(config).map_err(|error| format!("Application error: {}", error));
+```
+
+#### Config constructor
+This option allows the caller to create an rmuxinator `Config` struct and then pass it to the `run_start` function.
+
+The [pi-wall-utils](https://github.com/ethagnawl/pi-wall-utils) project (also maintained by [ethagnawl](https://github.com/ethagnawl)) does this and can be used as a reference.
+
+
+Example:
+
+```
+let rmuxinator_config = rmuxinator::Config {
+    hooks: vec![],
+    layout: None,
+    name: String::from("rmuxinator-library-example"),
+    windows: vec![
+        rmuxinator::Window {
+            layout: None,
+            name: None,
+            panes: vec![rmuxinator::Pane {
+                commands: vec![
+                    String::from("echo 'hello!'"),
+                ],
+                name: None,
+                start_directory: None,
+            }],
+            start_directory: None,
+    }
+    ];
+
+};
+rmuxinator::run_start(rmuxinator_config).map_err(|error| format!("Rmuxinator error: {}", error))
+```
+
 ## Known Issues and Workarounds
 ### Indexes
 rmuxinator currently assumes that both `base-index` and `pane-base-index` are
