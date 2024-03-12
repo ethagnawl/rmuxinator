@@ -14,7 +14,7 @@ fn main() -> Result<(), String> {
 
     let cli_args = parse_args(env::args_os());
 
-    let config = Config::new(&cli_args)
+    let config = Config::new_from_file_path(&cli_args.project_name)
         .map_err(|error| format!("Problem parsing config file: {}", error))?;
 
     match cli_args.command {
