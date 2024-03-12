@@ -223,8 +223,6 @@ require writing a custom Serde deserializer for the Config type.
 config (I'm not convinced this is necessary)
 - Other CLI commands? (stop session, create/edit/delete project)
 - Use named args in calls to format! where possible
-- Cut v0.2.0 release and publish binaries
-- Create separate Config constructors for fields (i.e. library) and config file (i.e. binary)
 
 ## Platforms
 Here are the platforms rmuxinator is known to work on:
