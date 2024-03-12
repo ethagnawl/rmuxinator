@@ -417,6 +417,9 @@ impl FromStr for CliCommand {
 #[derive(Debug, PartialEq)]
 pub struct CliArgs {
     pub command: CliCommand,
+    // TODO: `project_name` is currently overloaded and also used as the config
+    // path. We should either make this more explicit or introduce separate
+    // args.
     pub project_name: String,
 }
 
@@ -549,10 +552,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(cli_args: &CliArgs) -> Result<Config, String> {
+    pub fn new_from_config_path(config_path: &String) -> Result<Config, String> {
         // Need to return String in failure case because toml::from_str may
         // return a toml::de::Error.
-        let mut config_file = match File::open(&cli_args.project_name) {
+        let mut config_file = match File::open(&config_path) {
             Ok(file) => file,
             Err(_) => return Err(String::from("Unable to open config file.")),
         };
