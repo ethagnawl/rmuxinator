@@ -12,9 +12,19 @@ more dependable (config is typechecked where possible) and simpler to install.
 It's also a great excuse for me to learn more about Rust, its ecosystem and
 compiling/distributing binaries for various platforms.
 
-## How does it work?
-- install tmux (>= 2.8), rust and cargo
-- build and run with: `cargo build && ./target/debug/rmuxinator start Example.toml`
+## TLDR; How do I use it?
+- install tmux (>= 2.8), [rust and cargo](https://rustup.rs/)
+
+### Cargo
+- install: `cargo install rmuxinator`
+- run: `rmuxinator start Example.toml`
+
+### Source
+#### `cargo build`
+- build: `cargo build && ./target/debug/rmuxinator start Example.toml`
+- run: `./target/debug/rmuxinator start Example.toml`
+#### `cargo run`
+- run: `cargo run start Example.toml`
 
 ## Documentation
 
