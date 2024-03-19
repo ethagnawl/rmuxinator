@@ -11,10 +11,17 @@ use serde::{Deserialize, Serialize};
 
 extern crate toml;
 
-fn run_tmux_command(command: &[String]) {
+fn run_tmux_command(command: &[String], wait: bool) -> Result<(), Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
-    Command::new("tmux").args(command).output().unwrap();
+    let mut tmux = Command::new("tmux");
+    if wait {
+        let _ = tmux.args(command).spawn()?.wait();
+    } else {
+        let _ = tmux.args(command).output().unwrap();
+    }
+
+    Ok(())
 }
 
 fn build_pane_args(session_name: &str, window_index: &usize) -> Vec<String> {
@@ -120,7 +127,7 @@ fn build_pane_command_args(
     ]
 }
 
-fn build_attach_args(session_name: &str) -> Vec<String> {
+fn build_attach_command_args(session_name: &str) -> Vec<String> {
     vec![
         String::from("-u"),
         String::from("attach-session"),
@@ -208,7 +215,7 @@ pub fn test_for_tmux(tmux_command: &str) -> bool {
     output.status.success()
 }
 
-fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
+fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> {
     let mut commands = vec![];
 
     let session_name = &config.name;
@@ -223,11 +230,11 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
 
     let create_session_args =
         build_session_args(session_name, first_window, &session_start_directory);
-    commands.push(create_session_args);
+    commands.push((create_session_args, false));
 
     for hook in config.hooks.iter() {
         let hook_command = build_hook_args(&hook);
-        commands.push(hook_command);
+        commands.push((hook_command, false));
     }
 
     for (window_index, window) in config.windows.iter().enumerate() {
@@ -252,14 +259,14 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
                 &window_start_directory,
             );
 
-            commands.push(create_window_args);
+            commands.push((create_window_args, false));
         }
 
         for (pane_index, pane) in window.panes.iter().enumerate() {
             // Pane 0 is created by default by the containing window
             if pane_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
-                commands.push(pane_args);
+                commands.push((pane_args, false));
             }
 
             // Conditionally set start_directory for pane.
@@ -274,13 +281,13 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
                 let command = format!("cd {}", pane_start_directory);
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, &command);
-                commands.push(pane_command_args);
+                commands.push((pane_command_args, false));
             }
 
             for (_, command) in pane.commands.iter().enumerate() {
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, command);
-                commands.push(pane_command_args);
+                commands.push((pane_command_args, false));
             }
 
             let rename_pane_args = build_rename_pane_args(
@@ -291,7 +298,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
                 &pane.name.clone(),
             );
             if let Some(rename_pane_args_) = rename_pane_args {
-                commands.push(rename_pane_args_);
+                commands.push((rename_pane_args_, false));
             }
         }
 
@@ -299,8 +306,13 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
             build_window_layout_args(session_name, &window_index, &config.layout, &window.layout);
 
         if let Some(window_layout_args_) = window_layout_args {
-            commands.push(window_layout_args_);
+            commands.push((window_layout_args_, false));
         }
+    }
+
+    if config.attached {
+        let attach_args = build_attach_command_args(&config.name);
+        commands.push((attach_args, true));
     }
 
     commands
@@ -310,21 +322,15 @@ pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
     let commands = convert_config_to_tmux_commands(&config);
 
     for command in commands {
-        run_tmux_command(&command);
+        let _ = run_tmux_command(&command.0, command.1);
     }
-
-    // TODO: Move this into helper. First attempt resulted in error caused by
-    // return type. I think I either need to return the command and then spawn
-    // or return the result of calling spawn.
-    let attach_args = build_attach_args(&config.name);
-    let _attach_output = Command::new("tmux").args(&attach_args).spawn()?.wait();
 
     Ok(())
 }
 
 pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
     for command in convert_config_to_tmux_commands(&config) {
-        println!("tmux {}", command.join(" "));
+        println!("tmux {}", command.0.join(" "));
     }
 
     Ok(())
@@ -539,8 +545,15 @@ pub struct Hook {
     name: HookName,
 }
 
+// HACK: required in order to set serde default boolean in Config
+fn default_as_true() -> bool {
+    true
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default = "default_as_true")]
+    pub attached: bool,
     pub pane_name_user_option: Option<String>,
     #[serde(default)]
     pub hooks: Vec<Hook>,
@@ -789,7 +802,7 @@ mod tests {
             String::from("-t"),
             String::from(session_name),
         ];
-        let actual = build_attach_args(&session_name);
+        let actual = build_attach_command_args(&session_name);
         assert_eq!(expected, actual);
     }
 
