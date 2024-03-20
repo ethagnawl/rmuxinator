@@ -20,6 +20,13 @@ extern crate toml;
 // to excuse this boilerplate and cluttering of the main module. I may wind up
 // yanking this out in favor of a different mocking library, integration tests
 // or reliance on isolated unit tests which exercise this same behavior.
+// UPDATE: I'm now mocking run_tmux_command instead of Command, which feels
+// only slightly better because at least it's something we _own_ (in TDD
+// parlance). The CommandFactories can probably go away unless we really want
+// to verify that the conditional in run_tmux_command is dispatching the
+// correct arguments to Command. In an ideal world, we would but it will
+// require additional layers of indirection/mocking to verify that the correct
+// args method is being called on the mocked Command ...
 
 #[automock]
 pub trait CommandFactory {
@@ -51,6 +58,28 @@ fn run_tmux_command(
     Ok(())
 }
 
+#[automock]
+pub trait TmuxCommandRunner {
+    fn run_tmux_command(
+        &self,
+        command_factory: &dyn CommandFactory,
+        command: &[String],
+        wait: bool,
+    ) -> Result<(), Box<dyn Error>>;
+}
+
+pub struct RealTmuxCommandRunner;
+
+impl TmuxCommandRunner for RealTmuxCommandRunner {
+    fn run_tmux_command(
+        &self,
+        command_factory: &dyn CommandFactory,
+        command: &[String],
+        wait: bool,
+    ) -> Result<(), Box<dyn Error>> {
+        run_tmux_command(command_factory, command, wait)
+    }
+}
 fn build_pane_args(session_name: &str, window_index: &usize) -> Vec<String> {
     vec![
         String::from("split-window"),
@@ -345,13 +374,23 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
     commands
 }
 
-pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
+pub fn run_start(
+    config: Config,
+    tmux_command_runner: Option<&dyn TmuxCommandRunner>,
+) -> Result<(), Box<dyn Error>> {
+    // TODO: Is this really better than having the caller supply a
+    // TmuxCommandRunner? At least that's obvious ...
+    let tmux_command_runner_ = match tmux_command_runner {
+        Some(tmux_command_runner) => tmux_command_runner,
+        None => &RealTmuxCommandRunner,
+    };
+
     let commands = convert_config_to_tmux_commands(&config);
 
     let factory = RealCommandFactory;
 
     for command in commands {
-        let _ = run_tmux_command(&factory, &command.0, command.1);
+        let _ = tmux_command_runner_.run_tmux_command(&factory, &command.0, command.1);
     }
 
     Ok(())
@@ -637,12 +676,67 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_run_tmux_command_does_not_receive_attach_session_arg() {
-        let mut mock = MockCommandFactory::new();
-        mock.expect_new_()
-            .withf(|x: &String| *x == "tmux")
-            .returning(|x: &String| Command::new(x));
-        let _ = run_tmux_command(&mock, &vec![], false);
+    fn test_run_tmux_command_does_not_receive_an_attach_command_when_attached_false() {
+        let config = Config {
+            attached: false,
+            pane_name_user_option: None,
+            hooks: Vec::new(),
+            layout: None,
+            name: String::from("foo"),
+            start_directory: None,
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+        };
+
+        let mut mock = MockTmuxCommandRunner::new();
+        mock.expect_run_tmux_command()
+            .times(1)
+            .withf(|_, command: &[String], _| {
+                *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+            })
+            .with(always(), always(), eq(false))
+            .returning(|_x, _y, _z| (Ok(())));
+        let _ = run_start(config, Some(&mock));
+    }
+
+    #[test]
+    fn test_run_tmux_command_does_receive_an_attach_command_when_attached_true() {
+        let config = Config {
+            attached: true,
+            pane_name_user_option: None,
+            hooks: Vec::new(),
+            layout: None,
+            name: String::from("foo"),
+            start_directory: None,
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+        };
+
+        let mut mock = MockTmuxCommandRunner::new();
+
+        mock.expect_run_tmux_command()
+            .times(1)
+            .withf(|_, command: &[String], _| {
+                *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+            })
+            .with(always(), always(), eq(false))
+            .returning(|_x, _y, _z| (Ok(())));
+
+        mock.expect_run_tmux_command()
+            .times(1)
+            .withf(|_, command: &[String], _| *command == vec!["-u", "attach-session", "-t", "foo"])
+            .with(always(), always(), eq(true))
+            .returning(|_x, _y, _z| (Ok(())));
+
+        let _ = run_start(config, Some(&mock));
     }
 
     #[test]
