@@ -148,6 +148,7 @@ Example:
 
 ```
 let rmuxinator_config = rmuxinator::Config {
+    attached: true,
     hooks: vec![],
     layout: None,
     name: String::from("rmuxinator-library-example"),

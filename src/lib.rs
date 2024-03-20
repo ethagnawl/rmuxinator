@@ -817,6 +817,7 @@ mod tests {
     #[test]
     fn it_uses_no_start_directory_when_none_present_for_session_start_directory() {
         let config = Config {
+            attached: true,
             pane_name_user_option: None,
             hooks: Vec::new(),
             layout: None,
@@ -838,6 +839,7 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_session_start_directory(
     ) {
         let config = Config {
+            attached: true,
             pane_name_user_option: None,
             hooks: Vec::new(),
             layout: None,
@@ -853,6 +855,7 @@ mod tests {
     #[test]
     fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory() {
         let config = Config {
+            attached: true,
             pane_name_user_option: None,
             hooks: Vec::new(),
             layout: None,
@@ -1097,6 +1100,7 @@ mod tests {
     #[test]
     fn it_computes_the_expected_commands() {
         let config = Config {
+            attached: false,
             hooks: vec![],
             layout: None,
             name: String::from("most basic config"),
@@ -1104,12 +1108,15 @@ mod tests {
             start_directory: None,
             windows: vec![],
         };
-        let expected = vec![vec![
-            String::from("new-session"),
-            String::from("-d"),
-            String::from("-s"),
-            String::from("most basic config"),
-        ]];
+        let expected = vec![(
+            vec![
+                String::from("new-session"),
+                String::from("-d"),
+                String::from("-s"),
+                String::from("most basic config"),
+            ],
+            false,
+        )];
         let actual = convert_config_to_tmux_commands(&config);
         assert_eq!(expected, actual);
     }
