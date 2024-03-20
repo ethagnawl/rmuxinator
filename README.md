@@ -135,7 +135,7 @@ Example:
 
 ```
 let config = rmuxinator::Config::new_from_config_path(&String::from("/home/pi/foo.toml")).map_err(|error| format!("Problem parsing config file: {}", error))?;
-rmuxinator::run_start(config).map_err(|error| format!("Application error: {}", error));
+rmuxinator::run_start(config, None).map_err(|error| format!("Application error: {}", error));
 ```
 
 #### Config constructor
@@ -168,7 +168,7 @@ let rmuxinator_config = rmuxinator::Config {
     ];
 
 };
-rmuxinator::run_start(rmuxinator_config).map_err(|error| format!("Rmuxinator error: {}", error))
+rmuxinator::run_start(rmuxinator_config, None).map_err(|error| format!("Rmuxinator error: {}", error))
 ```
 
 ## Known Issues and Workarounds
