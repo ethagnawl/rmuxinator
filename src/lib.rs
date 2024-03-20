@@ -1,3 +1,5 @@
+use clap::{App, AppSettings, Arg, SubCommand};
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::ffi::OsString;
 use std::fmt;
@@ -5,9 +7,6 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::process::Command;
 use std::str::FromStr;
-
-use clap::{App, AppSettings, Arg, SubCommand};
-use serde::{Deserialize, Serialize};
 
 extern crate toml;
 
