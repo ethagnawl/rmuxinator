@@ -1,4 +1,6 @@
 use clap::{App, AppSettings, Arg, SubCommand};
+use mockall::predicate::*;
+use mockall::*;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::ffi::OsString;
@@ -10,10 +12,36 @@ use std::str::FromStr;
 
 extern crate toml;
 
-fn run_tmux_command(command: &[String], wait: bool) -> Result<(), Box<dyn Error>> {
+// All of the following automock and *Factory business exists to facilitate
+// mocking. Coming from a dynamic language background, this does not smell
+// right to me but I don't see any way around it. Attempts to scope the mocking
+// to the test env via `#[cfg(test)]` were unsuccessful and seem to rely on
+// "nightly" features which also doesn't smell like a good idea. So, that's all
+// to excuse this boilerplate and cluttering of the main module. I may wind up
+// yanking this out in favor of a different mocking library, integration tests
+// or reliance on isolated unit tests which exercise this same behavior.
+
+#[automock]
+pub trait CommandFactory {
+    fn new_(&self, program: &String) -> Command;
+}
+
+pub struct RealCommandFactory;
+
+impl CommandFactory for RealCommandFactory {
+    fn new_(&self, program: &String) -> Command {
+        Command::new(program)
+    }
+}
+
+fn run_tmux_command(
+    command_factory: &dyn CommandFactory,
+    command: &[String],
+    wait: bool,
+) -> Result<(), Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
-    let mut tmux = Command::new("tmux");
+    let mut tmux = command_factory.new_(&String::from("tmux"));
     if wait {
         let _ = tmux.args(command).spawn()?.wait();
     } else {
@@ -320,8 +348,10 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
 pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
     let commands = convert_config_to_tmux_commands(&config);
 
+    let factory = RealCommandFactory;
+
     for command in commands {
-        let _ = run_tmux_command(&command.0, command.1);
+        let _ = run_tmux_command(&factory, &command.0, command.1);
     }
 
     Ok(())
@@ -605,6 +635,15 @@ fn convert_pascal_case_to_kebab_case(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_run_tmux_command_does_not_receive_attach_session_arg() {
+        let mut mock = MockCommandFactory::new();
+        mock.expect_new_()
+            .withf(|x: &String| *x == "tmux")
+            .returning(|x: &String| Command::new(x));
+        let _ = run_tmux_command(&mock, &vec![], false);
+    }
 
     #[test]
     fn it_converts_a_pascal_case_string_to_a_kebab_case_string() {
