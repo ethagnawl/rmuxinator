@@ -12,14 +12,15 @@ use std::str::FromStr;
 
 extern crate toml;
 
-// All of the following automock and *Factory business exists to facilitate
-// mocking. Coming from a dynamic language background, this does not smell
-// right to me but I don't see any way around it. Attempts to scope the mocking
-// to the test env via `#[cfg(test)]` were unsuccessful and seem to rely on
-// "nightly" features which also doesn't smell like a good idea. So, that's all
-// to excuse this boilerplate and cluttering of the main module. I may wind up
-// yanking this out in favor of a different mocking library, integration tests
-// or reliance on isolated unit tests which exercise this same behavior.
+// The following automock and *Factory business exists to facilitate mocking.
+// Coming from a dynamic language background, this does not smell right to me
+// but I don't see any way around it. Attempts to scope the mocking to the test
+// env via `#[cfg(test)]` were unsuccessful and seem to rely on "nightly"
+// features which also doesn't smell like a good idea. So, that's all to excuse
+// this boilerplate and cluttering of the main module.
+// I may wind up yanking this out in favor of a different mocking library,
+// integration tests or reliance on isolated unit tests which exercise this
+// same behavior.
 // UPDATE: I'm now mocking run_tmux_command instead of Command, which feels
 // only slightly better because at least it's something we _own_ (in TDD
 // parlance). The CommandFactories can probably go away unless we really want
@@ -27,16 +28,17 @@ extern crate toml;
 // correct arguments to Command. In an ideal world, we would but it will
 // require additional layers of indirection/mocking to verify that the correct
 // args method is being called on the mocked Command ...
+// - ethagnawl
 
 #[automock]
 pub trait CommandFactory {
-    fn new_(&self, program: &String) -> Command;
+    fn new_(&self, program: &str) -> Command;
 }
 
 pub struct RealCommandFactory;
 
 impl CommandFactory for RealCommandFactory {
-    fn new_(&self, program: &String) -> Command {
+    fn new_(&self, program: &str) -> Command {
         Command::new(program)
     }
 }
@@ -48,7 +50,7 @@ fn run_tmux_command(
 ) -> Result<(), Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
-    let mut tmux = command_factory.new_(&String::from("tmux"));
+    let mut tmux = command_factory.new_("tmux");
     if wait {
         let _ = tmux.args(command).spawn()?.wait();
     } else {
@@ -374,26 +376,26 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
     commands
 }
 
-pub fn run_start(
+fn run_start_(
     config: Config,
-    tmux_command_runner: Option<&dyn TmuxCommandRunner>,
+    tmux_command_runner: &dyn TmuxCommandRunner,
 ) -> Result<(), Box<dyn Error>> {
-    // TODO: Is this really better than having the caller supply a
-    // TmuxCommandRunner? At least that's obvious ...
-    let tmux_command_runner_ = match tmux_command_runner {
-        Some(tmux_command_runner) => tmux_command_runner,
-        None => &RealTmuxCommandRunner,
-    };
-
     let commands = convert_config_to_tmux_commands(&config);
-
     let factory = RealCommandFactory;
-
     for command in commands {
-        let _ = tmux_command_runner_.run_tmux_command(&factory, &command.0, command.1);
+        let _ = tmux_command_runner.run_tmux_command(&factory, &command.0, command.1);
     }
-
     Ok(())
+}
+
+pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
+    // NOTE: This exists to prevent the public API from having to change in
+    // order pass in an optional TmuxCommandRunner (e.g. None). As noted above
+    // this indirection exists soley to facilitate mocking run_tmux_command in
+    // the test env. This is the best approach I've hit upon yet but I'm
+    // still not convinced it's a good, worthwhile idea.
+    // - ethagnawl
+    run_start_(config, &RealTmuxCommandRunner)
 }
 
 pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
@@ -700,7 +702,7 @@ mod tests {
             })
             .with(always(), always(), eq(false))
             .returning(|_x, _y, _z| (Ok(())));
-        let _ = run_start(config, Some(&mock));
+        let _ = run_start_(config, &mock);
     }
 
     #[test]
@@ -736,7 +738,7 @@ mod tests {
             .with(always(), always(), eq(true))
             .returning(|_x, _y, _z| (Ok(())));
 
-        let _ = run_start(config, Some(&mock));
+        let _ = run_start_(config, &mock);
     }
 
     #[test]
