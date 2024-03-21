@@ -88,7 +88,7 @@ Optional attributes will be noted below.
 - `windows` (array; see dedicated entry)
 
 ###### Optional
--  attached (bool; whether or not to attach to newly created tmux session)
+-  attached (bool; defaults to `true`; whether or not to attach to newly created tmux session)
 - `hooks` (array; see dedicated entry)
 - `layout` (string; preset tmux layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled")
 - `pane_name_user_option` (string; must have matching entry in .tmux.conf (e.g.  `set -g pane-border-format "#{@custom_pane_title}"`)
