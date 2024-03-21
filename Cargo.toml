@@ -10,9 +10,9 @@ keywords = ["tmux", "productivity"]
 
 [dependencies]
 clap = "2.33"
-toml = "0.4"
-serde = { version = "1.0", features = ["derive"] }
 mockall = "0.10"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.4"
 
 [dev-dependencies]
 assert_cmd = "1"
