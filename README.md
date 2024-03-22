@@ -88,6 +88,7 @@ Optional attributes will be noted below.
 - `windows` (array; see dedicated entry)
 
 ###### Optional
+-  attached (bool; defaults to `true`; whether or not to attach to newly created tmux session)
 - `hooks` (array; see dedicated entry)
 - `layout` (string; preset tmux layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled")
 - `pane_name_user_option` (string; must have matching entry in .tmux.conf (e.g.  `set -g pane-border-format "#{@custom_pane_title}"`)
@@ -134,7 +135,7 @@ Example:
 
 ```
 let config = rmuxinator::Config::new_from_config_path(&String::from("/home/pi/foo.toml")).map_err(|error| format!("Problem parsing config file: {}", error))?;
-rmuxinator::run_start(config).map_err(|error| format!("Application error: {}", error));
+rmuxinator::run_start(config).map_err(|error| format!("Rmuxinator error: {}", error));
 ```
 
 #### Config constructor
@@ -147,6 +148,7 @@ Example:
 
 ```
 let rmuxinator_config = rmuxinator::Config {
+    attached: true,
     hooks: vec![],
     layout: None,
     name: String::from("rmuxinator-library-example"),
@@ -216,13 +218,13 @@ remove themselves in order to prevent duplicate events.
 - Handle shell failures -- `tmux kill-window` was failing silently
 - Can commands can all be moved into structs and computed up front? This might
 require writing a custom Serde deserializer for the Config type.
-- Start detached tmux session
 - Select window on attach (can this be handled by a pre-existing hook?)
 - Attach if session exists instead of creating sesssion
 - Search for project config file on disk (XDG_CONFIG?) instead of parsing
 config (I'm not convinced this is necessary)
 - Other CLI commands? (stop session, create/edit/delete project)
 - Use named args in calls to format! where possible
+- Implement default for Config struct
 
 ## Platforms
 Here are the platforms rmuxinator is known to work on:

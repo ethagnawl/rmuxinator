@@ -1,6 +1,6 @@
 [package]
 name = "rmuxinator"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Peter Doherty <pdoherty@protonmail.com>"]
 edition = "2018"
 description = "tmux project configuration utility"
@@ -10,8 +10,9 @@ keywords = ["tmux", "productivity"]
 
 [dependencies]
 clap = "2.33"
-toml = "0.4"
+mockall = "0.10"
 serde = { version = "1.0", features = ["derive"] }
+toml = "0.4"
 
 [dev-dependencies]
 assert_cmd = "1"

@@ -1,3 +1,5 @@
+use clap::{App, AppSettings, Arg, SubCommand};
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::ffi::OsString;
 use std::fmt;
@@ -6,17 +8,49 @@ use std::io::prelude::*;
 use std::process::Command;
 use std::str::FromStr;
 
-use clap::{App, AppSettings, Arg, SubCommand};
-use serde::{Deserialize, Serialize};
-
 extern crate toml;
 
-fn run_tmux_command(command: &[String]) {
+// The following TmuxCommandRunner business exists only to facilitate mocking.
+// Coming from a dynamic language background, this does not smell right to me
+// but I don't see any way around it.
+// I may yet wind up yanking this out in favor of a different mocking library
+// or strategy,
+// We're mocking run_tmux_command instead of Command (via some combination of
+// CommandFactor and CommandRunner), which feels slightly ... less bad because
+// at least it's something we _own_ (in TDD parlance) but it's admittedly a bit
+// weird and contrived.
+// So, unless we _really_ want to verify that the conditional in
+// run_tmux_command is dispatching the correct arguments to Command, this is
+// probably good enough. In an ideal world, we would mock Command/args/output
+// but doing so using mockall will require at least one additional layer of
+// indirection and dependency injection and mocking to stub the command struct
+// _and_ the instance it returns and the methods
+// - ethagnawl
+
+fn run_tmux_command(command: &[String], wait: bool) -> Result<(), Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
-    Command::new("tmux").args(command).output().unwrap();
+    let mut tmux = Command::new("tmux");
+    if wait {
+        let _ = tmux.args(command).spawn()?.wait();
+    } else {
+        let _ = tmux.args(command).output().unwrap();
+    }
+
+    Ok(())
 }
 
+pub trait TmuxCommandRunner {
+    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<(), Box<dyn Error>>;
+}
+
+pub struct TmuxWrapper;
+
+impl TmuxCommandRunner for TmuxWrapper {
+    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<(), Box<dyn Error>> {
+        run_tmux_command(command, wait)
+    }
+}
 fn build_pane_args(session_name: &str, window_index: &usize) -> Vec<String> {
     vec![
         String::from("split-window"),
@@ -120,7 +154,7 @@ fn build_pane_command_args(
     ]
 }
 
-fn build_attach_args(session_name: &str) -> Vec<String> {
+fn build_attach_command_args(session_name: &str) -> Vec<String> {
     vec![
         String::from("-u"),
         String::from("attach-session"),
@@ -208,7 +242,7 @@ pub fn test_for_tmux(tmux_command: &str) -> bool {
     output.status.success()
 }
 
-fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
+fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> {
     let mut commands = vec![];
 
     let session_name = &config.name;
@@ -223,11 +257,11 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
 
     let create_session_args =
         build_session_args(session_name, first_window, &session_start_directory);
-    commands.push(create_session_args);
+    commands.push((create_session_args, false));
 
     for hook in config.hooks.iter() {
         let hook_command = build_hook_args(&hook);
-        commands.push(hook_command);
+        commands.push((hook_command, false));
     }
 
     for (window_index, window) in config.windows.iter().enumerate() {
@@ -252,14 +286,14 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
                 &window_start_directory,
             );
 
-            commands.push(create_window_args);
+            commands.push((create_window_args, false));
         }
 
         for (pane_index, pane) in window.panes.iter().enumerate() {
             // Pane 0 is created by default by the containing window
             if pane_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
-                commands.push(pane_args);
+                commands.push((pane_args, false));
             }
 
             // Conditionally set start_directory for pane.
@@ -274,13 +308,13 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
                 let command = format!("cd {}", pane_start_directory);
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, &command);
-                commands.push(pane_command_args);
+                commands.push((pane_command_args, false));
             }
 
             for (_, command) in pane.commands.iter().enumerate() {
                 let pane_command_args =
                     build_pane_command_args(session_name, &window_index, &pane_index, command);
-                commands.push(pane_command_args);
+                commands.push((pane_command_args, false));
             }
 
             let rename_pane_args = build_rename_pane_args(
@@ -291,7 +325,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
                 &pane.name.clone(),
             );
             if let Some(rename_pane_args_) = rename_pane_args {
-                commands.push(rename_pane_args_);
+                commands.push((rename_pane_args_, false));
             }
         }
 
@@ -299,32 +333,43 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<Vec<String>> {
             build_window_layout_args(session_name, &window_index, &config.layout, &window.layout);
 
         if let Some(window_layout_args_) = window_layout_args {
-            commands.push(window_layout_args_);
+            commands.push((window_layout_args_, false));
         }
+    }
+
+    if config.attached {
+        let attach_args = build_attach_command_args(&config.name);
+        commands.push((attach_args, true));
     }
 
     commands
 }
 
-pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
+fn run_start_(
+    config: Config,
+    tmux_command_runner: &dyn TmuxCommandRunner,
+) -> Result<(), Box<dyn Error>> {
     let commands = convert_config_to_tmux_commands(&config);
-
     for command in commands {
-        run_tmux_command(&command);
+        let _ = tmux_command_runner.run_tmux_command(&command.0, command.1);
     }
-
-    // TODO: Move this into helper. First attempt resulted in error caused by
-    // return type. I think I either need to return the command and then spawn
-    // or return the result of calling spawn.
-    let attach_args = build_attach_args(&config.name);
-    let _attach_output = Command::new("tmux").args(&attach_args).spawn()?.wait();
-
     Ok(())
+}
+
+pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
+    // NOTE: This exists to prevent the public API from having to change in
+    // order pass in an optional TmuxCommandRunner (e.g. `None` in the
+    // application/non-test environment). As noted above this indirection
+    // exists soley to facilitate mocking run_tmux_command in the test env.
+    // This is the best approach I've hit upon yet but I'm still not convinced
+    // it's a good, worthwhile idea.
+    // - ethagnawl
+    run_start_(config, &TmuxWrapper)
 }
 
 pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
     for command in convert_config_to_tmux_commands(&config) {
-        println!("tmux {}", command.join(" "));
+        println!("tmux {}", command.0.join(" "));
     }
 
     Ok(())
@@ -345,13 +390,13 @@ where
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("debug")
-                .about("Print the tmux commands that would be used to start and configure a tmux session using a path to a project config file")
-                .arg(&project_config_file_arg)
+            .about("Print the tmux commands that would be used to start and configure a tmux session using a path to a project config file")
+            .arg(&project_config_file_arg)
         )
         .subcommand(
             SubCommand::with_name("start")
-                .about("Start a tmux session using a path to a project config file")
-                .arg(&project_config_file_arg)
+            .about("Start a tmux session using a path to a project config file")
+            .arg(&project_config_file_arg)
         )
         .get_matches_from(args);
 
@@ -539,8 +584,15 @@ pub struct Hook {
     name: HookName,
 }
 
+// HACK: required in order to set serde default boolean in Config
+fn default_as_true() -> bool {
+    true
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default = "default_as_true")]
+    pub attached: bool,
     pub pane_name_user_option: Option<String>,
     #[serde(default)]
     pub hooks: Vec<Hook>,
@@ -593,6 +645,82 @@ fn convert_pascal_case_to_kebab_case(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mockall::mock;
+    use mockall::predicate::*;
+
+    mock! {
+        TmuxCommandRunner {}
+        impl TmuxCommandRunner for TmuxCommandRunner {
+            fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<(), Box<dyn Error>>;
+        }
+    }
+
+    #[test]
+    fn test_run_tmux_command_does_not_receive_an_attach_command_when_attached_false() {
+        let config = Config {
+            attached: false,
+            pane_name_user_option: None,
+            hooks: Vec::new(),
+            layout: None,
+            name: String::from("foo"),
+            start_directory: None,
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+        };
+
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .times(1)
+            .withf(|command: &[String], _| {
+                *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+            })
+            .with(always(), eq(false))
+            .returning(|_y, _z| (Ok(())));
+        let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
+    fn test_run_tmux_command_does_receive_an_attach_command_when_attached_true() {
+        let config = Config {
+            attached: true,
+            pane_name_user_option: None,
+            hooks: Vec::new(),
+            layout: None,
+            name: String::from("foo"),
+            start_directory: None,
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+        };
+
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .times(1)
+            .withf(|command: &[String], _| {
+                *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+            })
+            .with(always(), eq(false))
+            .returning(|_y, _z| (Ok(())));
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .times(1)
+            .withf(|command: &[String], _| *command == vec!["-u", "attach-session", "-t", "foo"])
+            .with(always(), eq(true))
+            .returning(|_y, _z| (Ok(())));
+
+        let _ = run_start_(config, &tmux_command_runner);
+    }
 
     #[test]
     fn it_converts_a_pascal_case_string_to_a_kebab_case_string() {
@@ -789,7 +917,7 @@ mod tests {
             String::from("-t"),
             String::from(session_name),
         ];
-        let actual = build_attach_args(&session_name);
+        let actual = build_attach_command_args(&session_name);
         assert_eq!(expected, actual);
     }
 
@@ -804,6 +932,7 @@ mod tests {
     #[test]
     fn it_uses_no_start_directory_when_none_present_for_session_start_directory() {
         let config = Config {
+            attached: true,
             pane_name_user_option: None,
             hooks: Vec::new(),
             layout: None,
@@ -825,6 +954,7 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_session_start_directory(
     ) {
         let config = Config {
+            attached: true,
             pane_name_user_option: None,
             hooks: Vec::new(),
             layout: None,
@@ -840,6 +970,7 @@ mod tests {
     #[test]
     fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory() {
         let config = Config {
+            attached: true,
             pane_name_user_option: None,
             hooks: Vec::new(),
             layout: None,
@@ -1084,6 +1215,7 @@ mod tests {
     #[test]
     fn it_computes_the_expected_commands() {
         let config = Config {
+            attached: false,
             hooks: vec![],
             layout: None,
             name: String::from("most basic config"),
@@ -1091,12 +1223,15 @@ mod tests {
             start_directory: None,
             windows: vec![],
         };
-        let expected = vec![vec![
-            String::from("new-session"),
-            String::from("-d"),
-            String::from("-s"),
-            String::from("most basic config"),
-        ]];
+        let expected = vec![(
+            vec![
+                String::from("new-session"),
+                String::from("-d"),
+                String::from("-s"),
+                String::from("most basic config"),
+            ],
+            false,
+        )];
         let actual = convert_config_to_tmux_commands(&config);
         assert_eq!(expected, actual);
     }
