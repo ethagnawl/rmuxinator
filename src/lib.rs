@@ -1,5 +1,4 @@
 use clap::{App, AppSettings, Arg, SubCommand};
-use mockall::automock;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::ffi::OsString;
@@ -11,17 +10,11 @@ use std::str::FromStr;
 
 extern crate toml;
 
-// The following automock and TmuxCommandRunner business exists to facilitate
-// mocking.
+// The following TmuxCommandRunner business exists only to facilitate mocking.
 // Coming from a dynamic language background, this does not smell right to me
-// but I don't see any way around it. Attempts to scope the mocking to the test
-// env via `#[cfg(test)]` or to use the `mock!` macro were unsuccessful and
-// seem to rely on "nightly" features which also doesn't smell like a good
-// idea. So, that's all to excuse this boilerplate and cluttering of the main
-// module.
-// I may wind up yanking this out in favor of a different mocking library,
-// integration tests or reliance on isolated unit tests which exercise this
-// same behavior.
+// but I don't see any way around it.
+// I may yet wind up yanking this out in favor of a different mocking library
+// or strategy,
 // We're mocking run_tmux_command instead of Command (via some combination of
 // CommandFactor and CommandRunner), which feels slightly ... less bad because
 // at least it's something we _own_ (in TDD parlance) but it's admittedly a bit
@@ -47,7 +40,6 @@ fn run_tmux_command(command: &[String], wait: bool) -> Result<(), Box<dyn Error>
     Ok(())
 }
 
-#[automock]
 pub trait TmuxCommandRunner {
     fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<(), Box<dyn Error>>;
 }
@@ -398,13 +390,13 @@ where
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("debug")
-                .about("Print the tmux commands that would be used to start and configure a tmux session using a path to a project config file")
-                .arg(&project_config_file_arg)
+            .about("Print the tmux commands that would be used to start and configure a tmux session using a path to a project config file")
+            .arg(&project_config_file_arg)
         )
         .subcommand(
             SubCommand::with_name("start")
-                .about("Start a tmux session using a path to a project config file")
-                .arg(&project_config_file_arg)
+            .about("Start a tmux session using a path to a project config file")
+            .arg(&project_config_file_arg)
         )
         .get_matches_from(args);
 
@@ -653,7 +645,15 @@ fn convert_pascal_case_to_kebab_case(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mockall::mock;
     use mockall::predicate::*;
+
+    mock! {
+        TmuxCommandRunner {}
+        impl TmuxCommandRunner for TmuxCommandRunner {
+            fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<(), Box<dyn Error>>;
+        }
+    }
 
     #[test]
     fn test_run_tmux_command_does_not_receive_an_attach_command_when_attached_false() {
