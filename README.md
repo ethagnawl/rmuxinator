@@ -33,6 +33,7 @@ Projects are defined using toml.
 
 For example:
 ```
+attached = true
 layout = "main-horizontal"
 name = "example"
 pane_name_user_option = "custom_pane_title"
