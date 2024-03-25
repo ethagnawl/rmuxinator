@@ -249,7 +249,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
 
     let session_start_directory = build_session_start_directory(&config);
 
-    let first_window = if let Some(window) = config.windows.get(0) {
+    let first_window = if let Some(window) = config.windows.first() {
         window.name.clone()
     } else {
         None
@@ -264,7 +264,15 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
         commands.push((hook_command, false));
     }
 
-    for (window_index, window) in config.windows.iter().enumerate() {
+    // TODO Read from tmux config
+    let base_index = 0;
+    // TODO Read from tmux config
+    let pane_base_index = 0;
+
+    for (i, window) in config.windows.iter().enumerate() {
+
+        let window_index = base_index + i;
+
         // The first window is created by create_session because tmux always
         // creates a window when creating a session.
         // The alternative would be to create all of the project windows and
@@ -273,7 +281,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
         // think it's because the indexes get shuffled.
         // The alternative approach would be more explicit and preferable, so
         // maybe it's worth revisiting.
-        if window_index != 0 {
+        if window_index != base_index {
             // TODO: This is heavy handed and this logic is _sort of_ duped
             // in a few places. Maybe each type should have a method which is
             // able to compute its own starting directory?
@@ -289,9 +297,13 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
             commands.push((create_window_args, false));
         }
 
-        for (pane_index, pane) in window.panes.iter().enumerate() {
+        // TODO disconnect for loop index from window index
+        for (j, pane) in window.panes.iter().enumerate() {
+
+            let pane_index = pane_base_index + j;
+
             // Pane 0 is created by default by the containing window
-            if pane_index > 0 {
+            if pane_index > pane_base_index {
                 let pane_args = build_pane_args(session_name, &window_index);
                 commands.push((pane_args, false));
             }
