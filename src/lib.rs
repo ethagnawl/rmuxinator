@@ -6,7 +6,7 @@ use std::ffi::OsString;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
-use std::process::Command;
+use std::process::{Command, Output};
 use std::str::FromStr;
 
 extern crate toml;
@@ -28,29 +28,28 @@ extern crate toml;
 // _and_ the instance it returns and the methods
 // - ethagnawl
 
-fn run_tmux_command(command: &[String], wait: bool) -> Result<String, Box<dyn Error>> {
+fn run_tmux_command(command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
     // TODO: This fn should also accept an optional tmux config file to use with `-f`
     let mut tmux = Command::new("tmux");
     if wait {
-        let _ = tmux.args(command).spawn()?.wait();
-        return Ok(String::from("Ok"));
+        let child = tmux.args(command).spawn()?;
+        let output: Output = child.wait_with_output()?;
+        Ok(output)
     } else {
-        // TODO: This is weird. We should just return the Output.
-        let result = tmux.args(command).output().unwrap();
-        return Ok(String::from_utf8(result.stdout).unwrap());
+        Ok(tmux.args(command).output()?)
     }
 }
 
 pub trait TmuxCommandRunner {
-    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<String, Box<dyn Error>>;
+    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
 }
 
 pub struct TmuxWrapper;
 
 impl TmuxCommandRunner for TmuxWrapper {
-    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<String, Box<dyn Error>> {
+    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
         run_tmux_command(command, wait)
     }
 }
@@ -378,7 +377,9 @@ fn get_tmux_base_indices() -> TmuxBaseIndices {
     let mut base_index = 0;
     let mut pane_base_index = 0;
 
-    if let Some(captures) = pane_base_index_re.captures(&output.unwrap()) {
+    if let Some(captures) =
+        pane_base_index_re.captures(&String::from_utf8(output.unwrap().stdout).unwrap())
+    {
         pane_base_index = captures
             .name("pane_base_index")
             .unwrap()
