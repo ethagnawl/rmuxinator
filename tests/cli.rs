@@ -24,6 +24,8 @@ fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Erro
 
     // TODO: The indentation used below is very fragile. There must be a better
     // nicer, more robust solution to formatting multiline strings.
+    // TODO: The hardcoded 1 will cause the test to fail if the user is using
+    // a non-default base-index (i.e. > 0).
     Command::cargo_bin(env!("CARGO_PKG_NAME"))?
         .arg("debug")
         .arg(file.path())

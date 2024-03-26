@@ -28,28 +28,29 @@ extern crate toml;
 // _and_ the instance it returns and the methods
 // - ethagnawl
 
-fn run_tmux_command(command: &[String], wait: bool) -> Result<(), Box<dyn Error>> {
+fn run_tmux_command(command: &[String], wait: bool) -> Result<String, Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
     // TODO: This fn should also accept an optional tmux config file to use with `-f`
     let mut tmux = Command::new("tmux");
     if wait {
         let _ = tmux.args(command).spawn()?.wait();
+        return Ok(String::from("Ok"));
     } else {
-        let _ = tmux.args(command).output().unwrap();
+        // TODO: This is weird. We should just return the Output.
+        let result = tmux.args(command).output().unwrap();
+        return Ok(String::from_utf8(result.stdout).unwrap());
     }
-
-    Ok(())
 }
 
 pub trait TmuxCommandRunner {
-    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<(), Box<dyn Error>>;
+    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<String, Box<dyn Error>>;
 }
 
 pub struct TmuxWrapper;
 
 impl TmuxCommandRunner for TmuxWrapper {
-    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<(), Box<dyn Error>> {
+    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<String, Box<dyn Error>> {
         run_tmux_command(command, wait)
     }
 }
@@ -246,8 +247,7 @@ pub fn test_for_tmux(tmux_command: &str) -> bool {
 
 fn convert_config_to_tmux_commands(
     config: &Config,
-    base_index: usize,
-    pane_base_index: usize,
+    base_indices: TmuxBaseIndices,
 ) -> Vec<(Vec<String>, bool)> {
     let mut commands = vec![];
 
@@ -255,7 +255,7 @@ fn convert_config_to_tmux_commands(
 
     let session_start_directory = build_session_start_directory(&config);
 
-    let first_window = if let Some(window) = config.windows.get(base_index) {
+    let first_window = if let Some(window) = config.windows.get(base_indices.base_index) {
         window.name.clone()
     } else {
         None
@@ -279,8 +279,8 @@ fn convert_config_to_tmux_commands(
         // think it's because the indexes get shuffled.
         // The alternative approach would be more explicit and preferable, so
         // maybe it's worth revisiting.
-        let window_index = base_index + window_index_;
-        if window_index != base_index {
+        let window_index = base_indices.base_index + window_index_;
+        if window_index != base_indices.base_index {
             // TODO: This is heavy handed and this logic is _sort of_ duped
             // in a few places. Maybe each type should have a method which is
             // able to compute its own starting directory?
@@ -297,10 +297,9 @@ fn convert_config_to_tmux_commands(
         }
 
         for (j, pane) in window.panes.iter().enumerate() {
-            let pane_base_index_ = pane_base_index as usize;
-            let pane_index = pane_base_index_ + j;
+            let pane_index = base_indices.pane_base_index + j;
             // Pane 0 is created by default by the containing window
-            if pane_index > pane_base_index_ {
+            if pane_index > base_indices.pane_base_index {
                 let pane_args = build_pane_args(session_name, &window_index);
                 commands.push((pane_args, false));
             }
@@ -354,47 +353,61 @@ fn convert_config_to_tmux_commands(
     commands
 }
 
-fn get_base_index() -> usize {
-    let mut tmux = Command::new("sh");
-    // TODO: handle more gracefully
-    // TODO: is a new shell really necessary? using Command::new("tmux") results in "no tmux server running ..."
-    let output = tmux
-        .arg("-c")
-        .arg("tmux start-server\\; show-option -g | grep base-index")
-        .output()
-        .unwrap();
-    let output_ = String::from_utf8(output.stdout).unwrap();
-    let re = Regex::new(r#"base-index (?<base_index>\d+)"#).unwrap();
-    let caps = re.captures(&output_).unwrap();
-    let base_index = &caps["base_index"].parse::<usize>().unwrap_or(0);
-    println!("base_index: {:#?}", base_index);
-    *base_index
+#[derive(Debug, PartialEq)]
+struct TmuxBaseIndices {
+    base_index: usize,
+    pane_base_index: usize,
 }
 
-fn get_pane_base_index() -> usize {
-    let mut tmux = Command::new("sh");
-    // TODO: handle more gracefully
-    // TODO: is a new shell really necessary? using Command::new("tmux") results in "no tmux server running ..."
-    let output = tmux
-        .arg("-c")
-        .arg("tmux start-server\\; show-window-option -g | grep pane-base-index")
-        .output()
-        .unwrap();
-    let output_ = String::from_utf8(output.stdout).unwrap();
-    let re = Regex::new(r#"pane-base-index (?<pane_base_index>\d+)"#).unwrap();
-    let caps = re.captures(&output_).unwrap();
-    let pane_base_index = &caps["pane_base_index"].parse::<usize>().unwrap_or(0);
-    println!("pane_base_index: {:#?}", pane_base_index);
-    *pane_base_index
+fn get_tmux_base_indices() -> TmuxBaseIndices {
+    let args = vec![
+        "start-server".to_string(),
+        ";".to_string(),
+        "show-option".to_string(),
+        "-g".to_string(),
+        "base-index".to_string(),
+        ";".to_string(),
+        "show-window-option".to_string(),
+        "-g".to_string(),
+        "pane-base-index".to_string(),
+    ];
+
+    let output = run_tmux_command(&args, false);
+    let pane_base_index_re = Regex::new(r"(?:base-index (?P<base_index>\d+))?(?:.*\n)?(?:pane-base-index (?P<pane_base_index>\d+))?").unwrap();
+
+    let mut base_index = 0;
+    let mut pane_base_index = 0;
+
+    if let Some(captures) = pane_base_index_re.captures(&output.unwrap()) {
+        pane_base_index = captures
+            .name("pane_base_index")
+            .unwrap()
+            .as_str()
+            .parse::<usize>()
+            .unwrap();
+
+        base_index = captures
+            .name("base_index")
+            .unwrap()
+            .as_str()
+            .parse::<usize>()
+            .unwrap();
+    }
+
+    let tmux_base_indices = TmuxBaseIndices {
+        base_index: base_index,
+        pane_base_index: pane_base_index,
+    };
+
+    tmux_base_indices
 }
 
 fn run_start_(
     config: Config,
     tmux_command_runner: &dyn TmuxCommandRunner,
 ) -> Result<(), Box<dyn Error>> {
-    let base_index = get_base_index();
-    let pane_base_index = get_pane_base_index();
-    let commands = convert_config_to_tmux_commands(&config, base_index, pane_base_index);
+    let base_indices = get_tmux_base_indices();
+    let commands = convert_config_to_tmux_commands(&config, base_indices);
     for command in commands {
         let _ = tmux_command_runner.run_tmux_command(&command.0, command.1);
     }
@@ -413,9 +426,8 @@ pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
-    let base_index = get_base_index();
-    let pane_base_index = get_pane_base_index();
-    for command in convert_config_to_tmux_commands(&config, base_index, pane_base_index) {
+    let base_indices = get_tmux_base_indices();
+    for command in convert_config_to_tmux_commands(&config, base_indices) {
         println!("tmux {}", command.0.join(" "));
     }
 
@@ -699,7 +711,7 @@ mod tests {
     mock! {
         TmuxCommandRunner {}
         impl TmuxCommandRunner for TmuxCommandRunner {
-            fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<(), Box<dyn Error>>;
+            fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<String, Box<dyn Error>>;
         }
     }
 
@@ -728,7 +740,7 @@ mod tests {
                 *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
             .with(always(), eq(false))
-            .returning(|_y, _z| (Ok(())));
+            .returning(|_y, _z| (Ok(String::from("ok"))));
         let _ = run_start_(config, &tmux_command_runner);
     }
 
@@ -758,14 +770,14 @@ mod tests {
                 *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
             .with(always(), eq(false))
-            .returning(|_y, _z| (Ok(())));
+            .returning(|_y, _z| (Ok(String::from("ok"))));
 
         tmux_command_runner
             .expect_run_tmux_command()
             .times(1)
             .withf(|command: &[String], _| *command == vec!["-u", "attach-session", "-t", "foo"])
             .with(always(), eq(true))
-            .returning(|_y, _z| (Ok(())));
+            .returning(|_y, _z| (Ok(String::from("ok"))));
 
         let _ = run_start_(config, &tmux_command_runner);
     }
@@ -1280,7 +1292,11 @@ mod tests {
             ],
             false,
         )];
-        let actual = convert_config_to_tmux_commands(&config);
+        let base_indices = TmuxBaseIndices {
+            base_index: 0,
+            pane_base_index: 0,
+        };
+        let actual = convert_config_to_tmux_commands(&config, base_indices);
         assert_eq!(expected, actual);
     }
 
