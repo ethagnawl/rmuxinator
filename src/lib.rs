@@ -366,7 +366,7 @@ fn get_base_index() -> usize {
     let output_ = String::from_utf8(output.stdout).unwrap();
     let re = Regex::new(r#"base-index (?<base_index>\d+)"#).unwrap();
     let caps = re.captures(&output_).unwrap();
-    let base_index = &caps["base_index"].parse::<usize>().unwrap_or(1);
+    let base_index = &caps["base_index"].parse::<usize>().unwrap_or(0);
     println!("base_index: {:#?}", base_index);
     *base_index
 }
@@ -383,7 +383,7 @@ fn get_pane_base_index() -> usize {
     let output_ = String::from_utf8(output.stdout).unwrap();
     let re = Regex::new(r#"pane-base-index (?<pane_base_index>\d+)"#).unwrap();
     let caps = re.captures(&output_).unwrap();
-    let pane_base_index = &caps["pane_base_index"].parse::<usize>().unwrap_or(1);
+    let pane_base_index = &caps["pane_base_index"].parse::<usize>().unwrap_or(0);
     println!("pane_base_index: {:#?}", pane_base_index);
     *pane_base_index
 }
