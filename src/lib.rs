@@ -272,7 +272,7 @@ fn convert_config_to_tmux_commands(
     }
 
     let base_index_ = base_index as usize;
-    for (window_index, window) in config.windows.iter().enumerate() {
+    for (window_index_, window) in config.windows.iter().enumerate() {
         // The first window is created by create_session because tmux always
         // creates a window when creating a session.
         // The alternative would be to create all of the project windows and
@@ -281,8 +281,8 @@ fn convert_config_to_tmux_commands(
         // think it's because the indexes get shuffled.
         // The alternative approach would be more explicit and preferable, so
         // maybe it's worth revisiting.
-        let window_index_ = base_index_ + window_index;
-        if window_index_ != base_index_ {
+        let window_index = base_index_ + window_index_;
+        if window_index != base_index_ {
             // TODO: This is heavy handed and this logic is _sort of_ duped
             // in a few places. Maybe each type should have a method which is
             // able to compute its own starting directory?
@@ -290,7 +290,7 @@ fn convert_config_to_tmux_commands(
                 build_window_start_directory(&config.start_directory, &window.start_directory);
             let create_window_args = build_create_window_args(
                 session_name,
-                window_index_,
+                window_index,
                 &window.name,
                 &window_start_directory,
             );
