@@ -246,8 +246,8 @@ pub fn test_for_tmux(tmux_command: &str) -> bool {
 
 fn convert_config_to_tmux_commands(
     config: &Config,
-    base_index: i32,
-    pane_base_index: i32,
+    base_index: usize,
+    pane_base_index: usize,
 ) -> Vec<(Vec<String>, bool)> {
     let mut commands = vec![];
 
@@ -255,8 +255,7 @@ fn convert_config_to_tmux_commands(
 
     let session_start_directory = build_session_start_directory(&config);
 
-    let base_index_ = base_index as usize;
-    let first_window = if let Some(window) = config.windows.get(base_index_) {
+    let first_window = if let Some(window) = config.windows.get(base_index) {
         window.name.clone()
     } else {
         None
@@ -271,7 +270,6 @@ fn convert_config_to_tmux_commands(
         commands.push((hook_command, false));
     }
 
-    let base_index_ = base_index as usize;
     for (window_index_, window) in config.windows.iter().enumerate() {
         // The first window is created by create_session because tmux always
         // creates a window when creating a session.
@@ -281,8 +279,8 @@ fn convert_config_to_tmux_commands(
         // think it's because the indexes get shuffled.
         // The alternative approach would be more explicit and preferable, so
         // maybe it's worth revisiting.
-        let window_index = base_index_ + window_index_;
-        if window_index != base_index_ {
+        let window_index = base_index + window_index_;
+        if window_index != base_index {
             // TODO: This is heavy handed and this logic is _sort of_ duped
             // in a few places. Maybe each type should have a method which is
             // able to compute its own starting directory?
@@ -356,7 +354,7 @@ fn convert_config_to_tmux_commands(
     commands
 }
 
-fn get_base_index() -> i32 {
+fn get_base_index() -> usize {
     let mut tmux = Command::new("sh");
     // TODO: handle more gracefully
     // TODO: is a new shell really necessary? using Command::new("tmux") results in "no tmux server running ..."
@@ -368,12 +366,12 @@ fn get_base_index() -> i32 {
     let output_ = String::from_utf8(output.stdout).unwrap();
     let re = Regex::new(r#"base-index (?<base_index>\d+)"#).unwrap();
     let caps = re.captures(&output_).unwrap();
-    let base_index = &caps["base_index"].parse::<i32>().unwrap_or(1);
+    let base_index = &caps["base_index"].parse::<usize>().unwrap_or(1);
     println!("base_index: {:#?}", base_index);
     *base_index
 }
 
-fn get_pane_base_index() -> i32 {
+fn get_pane_base_index() -> usize {
     let mut tmux = Command::new("sh");
     // TODO: handle more gracefully
     // TODO: is a new shell really necessary? using Command::new("tmux") results in "no tmux server running ..."
@@ -385,7 +383,7 @@ fn get_pane_base_index() -> i32 {
     let output_ = String::from_utf8(output.stdout).unwrap();
     let re = Regex::new(r#"pane-base-index (?<pane_base_index>\d+)"#).unwrap();
     let caps = re.captures(&output_).unwrap();
-    let pane_base_index = &caps["pane_base_index"].parse::<i32>().unwrap_or(1);
+    let pane_base_index = &caps["pane_base_index"].parse::<usize>().unwrap_or(1);
     println!("pane_base_index: {:#?}", pane_base_index);
     *pane_base_index
 }
