@@ -1,4 +1,5 @@
 use clap::{App, AppSettings, Arg, SubCommand};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::ffi::OsString;
@@ -30,6 +31,7 @@ extern crate toml;
 fn run_tmux_command(command: &[String], wait: bool) -> Result<(), Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
+    // TODO: This fn should also accept an optional tmux config file to use with `-f`
     let mut tmux = Command::new("tmux");
     if wait {
         let _ = tmux.args(command).spawn()?.wait();
@@ -242,14 +244,19 @@ pub fn test_for_tmux(tmux_command: &str) -> bool {
     output.status.success()
 }
 
-fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> {
+fn convert_config_to_tmux_commands(
+    config: &Config,
+    base_index: i32,
+    pane_base_index: i32,
+) -> Vec<(Vec<String>, bool)> {
     let mut commands = vec![];
 
     let session_name = &config.name;
 
     let session_start_directory = build_session_start_directory(&config);
 
-    let first_window = if let Some(window) = config.windows.get(0) {
+    let base_index_ = base_index as usize;
+    let first_window = if let Some(window) = config.windows.get(base_index_) {
         window.name.clone()
     } else {
         None
@@ -264,6 +271,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
         commands.push((hook_command, false));
     }
 
+    let base_index_ = base_index as usize;
     for (window_index, window) in config.windows.iter().enumerate() {
         // The first window is created by create_session because tmux always
         // creates a window when creating a session.
@@ -273,7 +281,8 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
         // think it's because the indexes get shuffled.
         // The alternative approach would be more explicit and preferable, so
         // maybe it's worth revisiting.
-        if window_index != 0 {
+        let window_index_ = base_index_ + window_index;
+        if window_index_ != base_index_ {
             // TODO: This is heavy handed and this logic is _sort of_ duped
             // in a few places. Maybe each type should have a method which is
             // able to compute its own starting directory?
@@ -281,7 +290,7 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
                 build_window_start_directory(&config.start_directory, &window.start_directory);
             let create_window_args = build_create_window_args(
                 session_name,
-                window_index,
+                window_index_,
                 &window.name,
                 &window_start_directory,
             );
@@ -289,9 +298,11 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
             commands.push((create_window_args, false));
         }
 
-        for (pane_index, pane) in window.panes.iter().enumerate() {
+        for (j, pane) in window.panes.iter().enumerate() {
+            let pane_base_index_ = pane_base_index as usize;
+            let pane_index = pane_base_index_ + j;
             // Pane 0 is created by default by the containing window
-            if pane_index > 0 {
+            if pane_index > pane_base_index_ {
                 let pane_args = build_pane_args(session_name, &window_index);
                 commands.push((pane_args, false));
             }
@@ -345,11 +356,47 @@ fn convert_config_to_tmux_commands(config: &Config) -> Vec<(Vec<String>, bool)> 
     commands
 }
 
+fn get_base_index() -> i32 {
+    let mut tmux = Command::new("sh");
+    // TODO: handle more gracefully
+    // TODO: is a new shell really necessary? using Command::new("tmux") results in "no tmux server running ..."
+    let output = tmux
+        .arg("-c")
+        .arg("tmux start-server\\; show-option -g | grep base-index")
+        .output()
+        .unwrap();
+    let output_ = String::from_utf8(output.stdout).unwrap();
+    let re = Regex::new(r#"base-index (?<base_index>\d+)"#).unwrap();
+    let caps = re.captures(&output_).unwrap();
+    let base_index = &caps["base_index"].parse::<i32>().unwrap_or(1);
+    println!("base_index: {:#?}", base_index);
+    *base_index
+}
+
+fn get_pane_base_index() -> i32 {
+    let mut tmux = Command::new("sh");
+    // TODO: handle more gracefully
+    // TODO: is a new shell really necessary? using Command::new("tmux") results in "no tmux server running ..."
+    let output = tmux
+        .arg("-c")
+        .arg("tmux start-server\\; show-window-option -g | grep pane-base-index")
+        .output()
+        .unwrap();
+    let output_ = String::from_utf8(output.stdout).unwrap();
+    let re = Regex::new(r#"pane-base-index (?<pane_base_index>\d+)"#).unwrap();
+    let caps = re.captures(&output_).unwrap();
+    let pane_base_index = &caps["pane_base_index"].parse::<i32>().unwrap_or(1);
+    println!("pane_base_index: {:#?}", pane_base_index);
+    *pane_base_index
+}
+
 fn run_start_(
     config: Config,
     tmux_command_runner: &dyn TmuxCommandRunner,
 ) -> Result<(), Box<dyn Error>> {
-    let commands = convert_config_to_tmux_commands(&config);
+    let base_index = get_base_index();
+    let pane_base_index = get_pane_base_index();
+    let commands = convert_config_to_tmux_commands(&config, base_index, pane_base_index);
     for command in commands {
         let _ = tmux_command_runner.run_tmux_command(&command.0, command.1);
     }
@@ -368,7 +415,9 @@ pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
-    for command in convert_config_to_tmux_commands(&config) {
+    let base_index = get_base_index();
+    let pane_base_index = get_pane_base_index();
+    for command in convert_config_to_tmux_commands(&config, base_index, pane_base_index) {
         println!("tmux {}", command.0.join(" "));
     }
 
@@ -591,6 +640,7 @@ fn default_as_true() -> bool {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    // TODO: add base_index w/ default?
     #[serde(default = "default_as_true")]
     pub attached: bool,
     pub pane_name_user_option: Option<String>,
