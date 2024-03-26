@@ -32,7 +32,7 @@ start_directory = "$HOME/Documents"
 
 [[windows]]
   name = "window two"
-  start_directory = "/var/www"
+  start_directory = "/tmp"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
