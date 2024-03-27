@@ -359,6 +359,8 @@ struct TmuxBaseIndices {
 }
 
 fn get_tmux_base_indices() -> TmuxBaseIndices {
+    // `args` will result in the following command:
+    // `tmux start-server\; show-option -g base-index\; show-window-option -g pane-base-index`
     let args = vec![
         "start-server".to_string(),
         ";".to_string(),
@@ -374,23 +376,23 @@ fn get_tmux_base_indices() -> TmuxBaseIndices {
     let output = run_tmux_command(&args, false);
     let pane_base_index_re = Regex::new(r"(?:base-index (?P<base_index>\d+))?(?:.*\n)?(?:pane-base-index (?P<pane_base_index>\d+))?").unwrap();
 
+    // NOTE: This is a bit redundant but feels _better_ than using Option
+    // values and then immediately setting them to Some(N).
     let mut base_index = 0;
     let mut pane_base_index = 0;
 
     if let Some(captures) =
         pane_base_index_re.captures(&String::from_utf8(output.unwrap().stdout).unwrap())
     {
-        pane_base_index = captures
-            .name("pane_base_index")
-            .unwrap()
-            .as_str()
+        base_index = captures
+            .name("base_index")
+            .map_or("0", |m| m.as_str())
             .parse::<usize>()
             .unwrap();
 
-        base_index = captures
-            .name("base_index")
-            .unwrap()
-            .as_str()
+        pane_base_index = captures
+            .name("pane_base_index")
+            .map_or("0", |m| m.as_str())
             .parse::<usize>()
             .unwrap();
     }
@@ -709,10 +711,28 @@ mod tests {
     use mockall::mock;
     use mockall::predicate::*;
 
+    fn create_output(status: i32, stdout: Vec<u8>, stderr: Vec<u8>) -> Output {
+        // NOTE: There's no simple way to create an arbitrary ExitStatus
+        // instance, so we actually have to shell out. We could mock ExitStatus
+        // but that would require introducing a trait of our own which wraps
+        // ExitStatus and is used throughout the program, which seems like
+        // overkill.
+        let status = Command::new("sh")
+            .arg("-c")
+            .arg(format!("exit {}", status))
+            .status()
+            .expect("failed to execute process");
+        Output {
+            status,
+            stdout,
+            stderr,
+        }
+    }
+
     mock! {
         TmuxCommandRunner {}
         impl TmuxCommandRunner for TmuxCommandRunner {
-            fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<String, Box<dyn Error>>;
+            fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
         }
     }
 
@@ -741,7 +761,7 @@ mod tests {
                 *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
             .with(always(), eq(false))
-            .returning(|_y, _z| (Ok(String::from("ok"))));
+            .returning(|_y, _z| Ok(create_output(0, vec![], vec![])));
         let _ = run_start_(config, &tmux_command_runner);
     }
 
@@ -771,14 +791,14 @@ mod tests {
                 *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
             .with(always(), eq(false))
-            .returning(|_y, _z| (Ok(String::from("ok"))));
+            .returning(|_y, _z| (Ok(create_output(0, vec![], vec![]))));
 
         tmux_command_runner
             .expect_run_tmux_command()
             .times(1)
             .withf(|command: &[String], _| *command == vec!["-u", "attach-session", "-t", "foo"])
             .with(always(), eq(true))
-            .returning(|_y, _z| (Ok(String::from("ok"))));
+            .returning(|_y, _z| Ok(create_output(0, vec![], vec![])));
 
         let _ = run_start_(config, &tmux_command_runner);
     }
