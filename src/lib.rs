@@ -42,17 +42,18 @@ fn run_tmux_command(command: &[String], wait: bool) -> Result<Output, Box<dyn Er
     }
 }
 
-pub trait TmuxCommandRunner {
+trait TmuxCommandRunner {
     fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
 }
 
-pub struct TmuxWrapper;
+struct TmuxWrapper;
 
 impl TmuxCommandRunner for TmuxWrapper {
     fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
         run_tmux_command(command, wait)
     }
 }
+
 fn build_pane_args(session_name: &str, window_index: &usize) -> Vec<String> {
     vec![
         String::from("split-window"),
