@@ -6,11 +6,54 @@ use std::ffi::OsString;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
-use std::process::{Command, Output};
+use std::ops::Deref;
+use std::process::{Command, ExitStatus, Output};
 use std::str::FromStr;
 
 extern crate toml;
 
+struct MyCommand(Command);
+
+impl MyCommand {
+    fn new() -> Self {
+        MyCommand(Command::new("tmux"))
+    }
+}
+
+impl Deref for MyCommand {
+    type Target = Command;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+trait CustomCommand {
+    fn args(&mut self, args: &[String]) -> &mut Self;
+    fn output(&mut self) -> std::io::Result<Output>;
+    fn spawn(&mut self) -> std::io::Result<std::process::Child>;
+    fn status(&mut self) -> std::io::Result<ExitStatus>;
+}
+
+// Implement the CustomCommand trait for MyCommand by delegating to the dereferenced Command
+impl CustomCommand for MyCommand {
+    fn args(&mut self, args: &[String]) -> &mut Self {
+        self.0.args(args);
+        self
+    }
+
+    fn output(&mut self) -> std::io::Result<Output> {
+        self.0.output()
+    }
+
+    fn spawn(&mut self) -> std::io::Result<std::process::Child> {
+        self.0.spawn()
+    }
+
+    fn status(&mut self) -> std::io::Result<ExitStatus> {
+        self.0.status()
+    }
+}
 // The following TmuxCommandRunner business exists only to facilitate mocking.
 // Coming from a dynamic language background, this does not smell right to me
 // but I don't see any way around it.
@@ -711,6 +754,32 @@ mod tests {
     use super::*;
     use mockall::mock;
     use mockall::predicate::*;
+
+    mock! {
+        Cmd {}
+        impl CustomCommand for Cmd {
+            fn args(&mut self, args: &[String]) -> &mut Self;
+            fn output(&mut self) -> std::io::Result<Output>;
+            fn spawn(&mut self) -> std::io::Result<std::process::Child>;
+            fn status(&mut self) -> std::io::Result<ExitStatus>;
+        }
+    }
+
+    #[test]
+    fn test_x() {
+        let mut cmd = MockCmd::new();
+
+        cmd.expect_args().once().returning(|_| {
+            let mut cmd = MockCmd::new();
+            cmd.expect_output()
+                .once()
+                .returning(|| Ok(create_output(0, vec![], vec![])));
+            cmd
+        });
+
+        let args = vec![String::from(":P")];
+        let x = cmd.args(&args).output();
+    }
 
     fn create_output(status: i32, stdout: Vec<u8>, stderr: Vec<u8>) -> Output {
         // NOTE: There's no simple way to create an arbitrary ExitStatus
