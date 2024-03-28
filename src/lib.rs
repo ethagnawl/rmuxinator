@@ -760,32 +760,6 @@ mod tests {
     use mockall::mock;
     use mockall::predicate::*;
 
-    mock! {
-        Cmd {}
-        impl CustomCommand for Cmd {
-            fn args(&mut self, args: &[String]) -> &mut Self;
-            fn output(&mut self) -> std::io::Result<Output>;
-            fn spawn(&mut self) -> std::io::Result<std::process::Child>;
-            fn status(&mut self) -> std::io::Result<ExitStatus>;
-        }
-    }
-
-    #[test]
-    fn test_it_can_make_assertions_about_tmux_commands() {
-        let mut cmd = MockCmd::new();
-
-        cmd.expect_args().once().returning(|_| {
-            let mut cmd = MockCmd::new();
-            cmd.expect_output()
-                .once()
-                .returning(|| Ok(create_output(0, vec![], vec![])));
-            cmd
-        });
-
-        let args = vec![String::from(":P")];
-        let _ = run_tmux_command(&mut cmd, &args, false);
-    }
-
     fn create_output(status: i32, stdout: Vec<u8>, stderr: Vec<u8>) -> Output {
         // NOTE: There's no simple way to create an arbitrary ExitStatus
         // instance, so we actually have to shell out. We could mock ExitStatus
@@ -805,10 +779,36 @@ mod tests {
     }
 
     mock! {
+        Cmd {}
+        impl CustomCommand for Cmd {
+            fn args(&mut self, args: &[String]) -> &mut Self;
+            fn output(&mut self) -> std::io::Result<Output>;
+            fn spawn(&mut self) -> std::io::Result<std::process::Child>;
+            fn status(&mut self) -> std::io::Result<ExitStatus>;
+        }
+    }
+
+    mock! {
         TmuxCommandRunner {}
         impl TmuxCommandRunner for TmuxCommandRunner {
             fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
         }
+    }
+
+    #[test]
+    fn test_it_can_make_assertions_about_tmux_commands() {
+        let mut cmd = MockCmd::new();
+
+        cmd.expect_args().once().returning(|_| {
+            let mut cmd = MockCmd::new();
+            cmd.expect_output()
+                .once()
+                .returning(|| Ok(create_output(0, vec![], vec![])));
+            cmd
+        });
+
+        let args = vec![String::from(":P")];
+        let _ = run_tmux_command(&mut cmd, &args, false);
     }
 
     #[test]
