@@ -12,15 +12,15 @@ use std::str::FromStr;
 
 extern crate toml;
 
-struct MyCommand(Command);
+struct TmuxCommand(Command);
 
-impl MyCommand {
+impl TmuxCommand {
     fn new() -> Self {
-        MyCommand(Command::new("tmux"))
+        TmuxCommand(Command::new("tmux"))
     }
 }
 
-impl Deref for MyCommand {
+impl Deref for TmuxCommand {
     type Target = Command;
 
     fn deref(&self) -> &Self::Target {
@@ -28,15 +28,15 @@ impl Deref for MyCommand {
     }
 }
 
-trait CustomCommand {
+trait CommandWrapper {
     fn args(&mut self, args: &[String]) -> &mut Self;
     fn output(&mut self) -> std::io::Result<Output>;
     fn spawn(&mut self) -> std::io::Result<std::process::Child>;
     fn status(&mut self) -> std::io::Result<ExitStatus>;
 }
 
-// Implement the CustomCommand trait for MyCommand by delegating to the dereferenced Command
-impl CustomCommand for MyCommand {
+// Implement the CommandWrapper trait for TmuxCommand by delegating to the dereferenced Command
+impl CommandWrapper for TmuxCommand {
     fn args(&mut self, args: &[String]) -> &mut Self {
         self.0.args(args);
         self
@@ -71,7 +71,7 @@ impl CustomCommand for MyCommand {
 // _and_ the instance it returns and the methods
 // - ethagnawl
 
-fn run_tmux_command<C: CustomCommand>(
+fn run_tmux_command<C: CommandWrapper>(
     tmux: &mut C,
     command: &[String],
     wait: bool,
@@ -96,7 +96,7 @@ struct TmuxWrapper;
 
 impl TmuxCommandRunner for TmuxWrapper {
     fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
-        let mut tmux = MyCommand::new();
+        let mut tmux = TmuxCommand::new();
         run_tmux_command(&mut tmux, command, wait)
     }
 }
@@ -421,7 +421,7 @@ fn get_tmux_base_indices() -> TmuxBaseIndices {
         "pane-base-index".to_string(),
     ];
 
-    let mut tmux = MyCommand::new();
+    let mut tmux = TmuxCommand::new();
     let output = run_tmux_command(&mut tmux, &args, false);
     let pane_base_index_re = Regex::new(r"(?:base-index (?P<base_index>\d+))?(?:.*\n)?(?:pane-base-index (?P<pane_base_index>\d+))?").unwrap();
 
@@ -780,7 +780,7 @@ mod tests {
 
     mock! {
         Cmd {}
-        impl CustomCommand for Cmd {
+        impl CommandWrapper for Cmd {
             fn args(&mut self, args: &[String]) -> &mut Self;
             fn output(&mut self) -> std::io::Result<Output>;
             fn spawn(&mut self) -> std::io::Result<std::process::Child>;
