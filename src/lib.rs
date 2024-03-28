@@ -71,11 +71,14 @@ impl CustomCommand for MyCommand {
 // _and_ the instance it returns and the methods
 // - ethagnawl
 
-fn run_tmux_command(command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
+fn run_tmux_command(
+    tmux: &mut MyCommand,
+    command: &[String],
+    wait: bool,
+) -> Result<Output, Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
     // TODO: This fn should also accept an optional tmux config file to use with `-f`
-    let mut tmux = Command::new("tmux");
     if wait {
         let child = tmux.args(command).spawn()?;
         let output: Output = child.wait_with_output()?;
@@ -93,7 +96,8 @@ struct TmuxWrapper;
 
 impl TmuxCommandRunner for TmuxWrapper {
     fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
-        run_tmux_command(command, wait)
+        let mut tmux = MyCommand::new();
+        run_tmux_command(&mut tmux, command, wait)
     }
 }
 
@@ -417,7 +421,8 @@ fn get_tmux_base_indices() -> TmuxBaseIndices {
         "pane-base-index".to_string(),
     ];
 
-    let output = run_tmux_command(&args, false);
+    let mut tmux = MyCommand::new();
+    let output = run_tmux_command(&mut tmux, &args, false);
     let pane_base_index_re = Regex::new(r"(?:base-index (?P<base_index>\d+))?(?:.*\n)?(?:pane-base-index (?P<pane_base_index>\d+))?").unwrap();
 
     // NOTE: This is a bit redundant but feels _better_ than using Option
