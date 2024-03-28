@@ -255,7 +255,7 @@ fn convert_config_to_tmux_commands(
 
     let session_start_directory = build_session_start_directory(&config);
 
-    let first_window = if let Some(window) = config.windows.get(base_indices.base_index) {
+    let first_window = if let Some(window) = config.windows.first() {
         window.name.clone()
     } else {
         None
