@@ -71,8 +71,8 @@ impl CustomCommand for MyCommand {
 // _and_ the instance it returns and the methods
 // - ethagnawl
 
-fn run_tmux_command(
-    tmux: &mut MyCommand,
+fn run_tmux_command<C: CustomCommand>(
+    tmux: &mut C,
     command: &[String],
     wait: bool,
 ) -> Result<Output, Box<dyn Error>> {
@@ -771,7 +771,7 @@ mod tests {
     }
 
     #[test]
-    fn test_x() {
+    fn test_it_can_make_assertions_about_tmux_commands() {
         let mut cmd = MockCmd::new();
 
         cmd.expect_args().once().returning(|_| {
@@ -783,7 +783,7 @@ mod tests {
         });
 
         let args = vec![String::from(":P")];
-        let x = cmd.args(&args).output();
+        let _ = run_tmux_command(&mut cmd, &args, false);
     }
 
     fn create_output(status: i32, stdout: Vec<u8>, stderr: Vec<u8>) -> Output {
