@@ -22,17 +22,25 @@ fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Erro
         "#;
     writeln!(file, "{}", file_contents)?;
 
-    // TODO: The indentation used below is very fragile. There must be a better
-    // nicer, more robust solution to formatting multiline strings.
+    // NOTE: The hardcoded 1 will cause the test to fail if the user is using
+    // a non-default base-index (i.e. > 0). Once support is added for providing
+    // a custom tmux config file, this test case will become much more robust.
+    // We can write a temp config file using known/good/expected values and
+    // then provide that to the CLI invocation.
+    // The alternative would be to expose get_tmux_base_indices and use it to
+    // dynamically insert the window index but the custom config approach seems
+    // more elegant.
+    let expected = vec![
+        "tmux new-session -d -s debug -n one".to_string(),
+        "tmux new-window -t debug:1 -n two".to_string(),
+    ]
+    .join("\n");
     Command::cargo_bin(env!("CARGO_PKG_NAME"))?
         .arg("debug")
         .arg(file.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "tmux new-session -d -s debug -n one
-tmux new-window -t debug:1 -n two",
-        ));
+        .stdout(predicate::str::contains(expected));
 
     Ok(())
 }
