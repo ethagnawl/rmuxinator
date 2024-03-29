@@ -6,63 +6,11 @@ use std::ffi::OsString;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
-use std::ops::Deref;
-use std::process::{Command, ExitStatus, Output};
+use std::process::{Command, Output};
 use std::str::FromStr;
 
 extern crate toml;
 
-struct TmuxCommand(Command);
-
-impl TmuxCommand {
-    fn new() -> Self {
-        TmuxCommand(Command::new("tmux"))
-    }
-}
-
-impl Deref for TmuxCommand {
-    type Target = Command;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-trait CommandWrapper {
-    fn new() -> Self;
-    fn clone(&self) -> Self;
-    fn args(&mut self, args: &[String]) -> &mut Self;
-    fn output(&mut self) -> std::io::Result<Output>;
-    fn spawn(&mut self) -> std::io::Result<std::process::Child>;
-    fn status(&mut self) -> std::io::Result<ExitStatus>;
-}
-
-impl CommandWrapper for TmuxCommand {
-    fn clone(&self) -> Self {
-        TmuxCommand::new()
-    }
-
-    fn new() -> Self {
-        TmuxCommand::new()
-    }
-
-    fn args(&mut self, args: &[String]) -> &mut Self {
-        self.0.args(args);
-        self
-    }
-
-    fn output(&mut self) -> std::io::Result<Output> {
-        self.0.output()
-    }
-
-    fn spawn(&mut self) -> std::io::Result<std::process::Child> {
-        self.0.spawn()
-    }
-
-    fn status(&mut self) -> std::io::Result<ExitStatus> {
-        self.0.status()
-    }
-}
 // The following TmuxCommandRunner business exists only to facilitate mocking.
 // Coming from a dynamic language background, this does not smell right to me
 // but I don't see any way around it.
