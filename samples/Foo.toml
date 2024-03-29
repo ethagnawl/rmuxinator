@@ -1,0 +1,7 @@
+name = "debug"
+
+[[windows]]
+  name = "one"
+[[windows]]
+  name = "two"
+
