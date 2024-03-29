@@ -797,18 +797,6 @@ mod tests {
         }
     }
 
-    mock! {
-        Cmd { }
-        impl CommandWrapper for Cmd {
-            fn args(&mut self, args: &[String]) -> &mut Self;
-            fn clone(&self) -> Self;
-            fn new() -> Self;
-            fn output(&mut self) -> std::io::Result<Output>;
-            fn spawn(&mut self) -> std::io::Result<std::process::Child>;
-            fn status(&mut self) -> std::io::Result<ExitStatus>;
-        }
-    }
-
     //     #[test]
     //     fn test_it_defaults_to_base_index_when_no_value_found_in_tmux_session() {
     //         let mut cmd = MockCmd::new();
@@ -870,6 +858,68 @@ mod tests {
     //         let actual = indices.base_index;
     //         assert_eq!(expected, actual);
     //     }
+
+    #[test]
+    fn test_it_returns_custom_base_index_when_good_value_found_in_tmux_session() {
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .times(1)
+            .withf(|command: &[String], _| {
+                *command
+                    == vec![
+                        "start-server".to_string(),
+                        ";".to_string(),
+                        "show-option".to_string(),
+                        "-g".to_string(),
+                        "base-index".to_string(),
+                        ";".to_string(),
+                        "show-window-option".to_string(),
+                        "-g".to_string(),
+                        "pane-base-index".to_string(),
+                    ]
+            })
+            .with(always(), eq(false))
+            .returning(|_y, _z| Ok(create_output(0, "base-index 99".bytes().collect(), vec![])));
+        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let expected = 99;
+        let actual = indices.base_index;
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_it_returns_custom_pane_base_index_when_good_value_found_in_tmux_session() {
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .times(1)
+            .withf(|command: &[String], _| {
+                *command
+                    == vec![
+                        "start-server".to_string(),
+                        ";".to_string(),
+                        "show-option".to_string(),
+                        "-g".to_string(),
+                        "base-index".to_string(),
+                        ";".to_string(),
+                        "show-window-option".to_string(),
+                        "-g".to_string(),
+                        "pane-base-index".to_string(),
+                    ]
+            })
+            .with(always(), eq(false))
+            .returning(|_y, _z| {
+                Ok(create_output(
+                    0,
+                    "pane-base-index 99".bytes().collect(),
+                    vec![],
+                ))
+            });
+        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let expected = 99;
+        let actual = indices.pane_base_index;
+        assert_eq!(expected, actual);
+    }
 
     #[test]
     fn test_run_tmux_command_does_not_receive_an_attach_command_when_attached_false() {
