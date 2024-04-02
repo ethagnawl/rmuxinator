@@ -17,14 +17,14 @@ compiling/distributing binaries for various platforms.
 
 ### Cargo
 - install: `cargo install rmuxinator`
-- run: `rmuxinator start Example.toml`
+- run: `rmuxinator start samples/Example.toml`
 
 ### Source
 #### `cargo build`
-- build: `cargo build && ./target/debug/rmuxinator start Example.toml`
-- run: `./target/debug/rmuxinator start Example.toml`
+- build: `cargo build && ./target/debug/rmuxinator start samples/Example.toml`
+- run: `./target/debug/rmuxinator start samples/Example.toml`
 #### `cargo run`
-- run: `cargo run start Example.toml`
+- run: `cargo run start samples/Example.toml`
 
 ## Documentation
 
@@ -118,11 +118,11 @@ Optional attributes will be noted below.
 #### `debug`
 Print the tmux commands that would be used to start and configure a tmux
 session using a path to a project config file:
-`rmuxinator debug Example.toml`
+`rmuxinator debug samples/Example.toml`
 
 #### `start`
 Start a tmux session using a path to a project config file:
-`rmuxinator start Example.toml`
+`rmuxinator start samples/Example.toml`
 
 ### Use as a library
 rmuxinator can also be used as a library by other programs.
@@ -172,17 +172,6 @@ let rmuxinator_config = rmuxinator::Config {
 rmuxinator::run_start(rmuxinator_config).map_err(|error| format!("Rmuxinator error: {}", error))
 ```
 
-## Known Issues and Workarounds
-### Indexes
-rmuxinator currently assumes that both `base-index` and `pane-base-index` are
-0. This will be handled programatically in a future release, but for the time
-being, it can be worked around by either removing overrides from .tmux.conf or
-by adding the following:
-```
-set -g base-index 0
-set -g pane-base-index 0
-```
-
 ## Status
 This project is currently a proof of concept and I'll be duplicating tmuxinator
 features and adding additional improvements as I can find time. Right now, it's
@@ -200,6 +189,7 @@ capable of:
 pane-border-format config option)
 - running pane commands
 - wiring up optional tmux event hooks/callbacks
+- detecting/using tmux server base-index and pane-base-index values
 
 ## Still TODO:
 - Consider building up and executing a single script (a la tmuxinator) instead
@@ -226,6 +216,7 @@ config (I'm not convinced this is necessary)
 - Other CLI commands? (stop session, create/edit/delete project)
 - Use named args in calls to format! where possible
 - Implement default for Config struct
+- Accept optional tmux config file (i.e. `tmux -f ./foo.conf ...`)
 
 ## Platforms
 Here are the platforms rmuxinator is known to work on:
