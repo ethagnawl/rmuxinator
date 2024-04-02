@@ -413,7 +413,8 @@ fn run_start_(
     let base_indices = get_tmux_base_indices(tmux_command_runner);
     let commands = convert_config_to_tmux_commands(&config, base_indices);
     for command in commands {
-        // TODO: we need to use the CommandWrapper argument as a constructor
+        // TODO: run_tmux_command output should be handled and used to report
+        // errors to the user.
         let _ = tmux_command_runner.run_tmux_command(&command.0, command.1);
     }
     Ok(())
@@ -443,6 +444,8 @@ fn run_debug_(
 }
 
 pub fn run_debug(config: Config) -> Result<(), Box<dyn Error>> {
+    // See run_start docstring for TmuxWrapper rationale.
+    // - ethagnawl
     run_debug_(config, &TmuxWrapper)
 }
 
