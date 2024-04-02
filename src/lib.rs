@@ -296,8 +296,8 @@ fn convert_config_to_tmux_commands(
             commands.push((create_window_args, false));
         }
 
-        for (j, pane) in window.panes.iter().enumerate() {
-            let pane_index = base_indices.pane_base_index + j;
+        for (pane_index_, pane) in window.panes.iter().enumerate() {
+            let pane_index = base_indices.pane_base_index + pane_index_;
             // Pane 0 is created by default by the containing window
             if pane_index > base_indices.pane_base_index {
                 let pane_args = build_pane_args(session_name, &window_index);
