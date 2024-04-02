@@ -17,14 +17,14 @@ compiling/distributing binaries for various platforms.
 
 ### Cargo
 - install: `cargo install rmuxinator`
-- run: `rmuxinator start Example.toml`
+- run: `rmuxinator start samples/Example.toml`
 
 ### Source
 #### `cargo build`
-- build: `cargo build && ./target/debug/rmuxinator start Example.toml`
-- run: `./target/debug/rmuxinator start Example.toml`
+- build: `cargo build && ./target/debug/rmuxinator start samples/Example.toml`
+- run: `./target/debug/rmuxinator start samples/Example.toml`
 #### `cargo run`
-- run: `cargo run start Example.toml`
+- run: `cargo run start samples/Example.toml`
 
 ## Documentation
 
@@ -118,11 +118,11 @@ Optional attributes will be noted below.
 #### `debug`
 Print the tmux commands that would be used to start and configure a tmux
 session using a path to a project config file:
-`rmuxinator debug Example.toml`
+`rmuxinator debug samples/Example.toml`
 
 #### `start`
 Start a tmux session using a path to a project config file:
-`rmuxinator start Example.toml`
+`rmuxinator start samples/Example.toml`
 
 ### Use as a library
 rmuxinator can also be used as a library by other programs.
