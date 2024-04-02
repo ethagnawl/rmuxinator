@@ -270,8 +270,8 @@ fn convert_config_to_tmux_commands(
         commands.push((hook_command, false));
     }
 
-    for (window_index_, window) in config.windows.iter().enumerate() {
-        // The first window is created by create_session because tmux always
+    for (window_iterator_index, window) in config.windows.iter().enumerate() {
+        // The "first" window is created by create_session because tmux always
         // creates a window when creating a session.
         // The alternative would be to create all of the project windows and
         // then kill the first/default one, but I saw unexpected behavior
@@ -279,8 +279,8 @@ fn convert_config_to_tmux_commands(
         // think it's because the indexes get shuffled.
         // The alternative approach would be more explicit and preferable, so
         // maybe it's worth revisiting.
-        let window_index = base_indices.base_index + window_index_;
-        if window_index != base_indices.base_index {
+        let window_index = base_indices.base_index + window_iterator_index;
+        if window_iterator_index > 0 {
             // TODO: This is heavy handed and this logic is _sort of_ duped
             // in a few places. Maybe each type should have a method which is
             // able to compute its own starting directory?
@@ -296,10 +296,10 @@ fn convert_config_to_tmux_commands(
             commands.push((create_window_args, false));
         }
 
-        for (pane_index_, pane) in window.panes.iter().enumerate() {
-            let pane_index = base_indices.pane_base_index + pane_index_;
-            // Pane 0 is created by default by the containing window
-            if pane_index > base_indices.pane_base_index {
+        for (pane_iterator_index, pane) in window.panes.iter().enumerate() {
+            let pane_index = base_indices.pane_base_index + pane_iterator_index;
+            // The "first" pane is created by default by the containing window
+            if pane_iterator_index > 0 {
                 let pane_args = build_pane_args(session_name, &window_index);
                 commands.push((pane_args, false));
             }
