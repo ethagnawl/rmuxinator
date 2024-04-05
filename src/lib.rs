@@ -1,4 +1,5 @@
 use clap::{App, AppSettings, Arg, SubCommand};
+use derivative::Derivative;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -249,6 +250,8 @@ fn convert_config_to_tmux_commands(
     config: &Config,
     base_indices: TmuxBaseIndices,
 ) -> Vec<(Vec<String>, bool)> {
+    // TODO: We should always start the server -- especially when using -f
+    //let mut commands = vec![(vec![String::from("start-server")], false)];
     let mut commands = vec![];
 
     let session_name = &config.name;
@@ -350,7 +353,21 @@ fn convert_config_to_tmux_commands(
         commands.push((attach_args, true));
     }
 
-    commands
+    // TODO: We should consider adding sensible line endings
+    // to delineate command boundaries.
+    //let terminator = ";";
+    if let Some(tmux_options) = config.tmux_options.clone() {
+        let prefixed_commands = commands
+            .into_iter()
+            .map(|(mut nested_vec, bool)| {
+                nested_vec.insert(0, tmux_options.clone());
+                (nested_vec, bool)
+            })
+            .collect();
+        prefixed_commands
+    } else {
+        commands
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -663,7 +680,7 @@ fn default_as_true() -> bool {
     true
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Derivative, Debug, Default, Deserialize, Serialize)]
 pub struct Config {
     // TODO: add base_index w/ default?
     #[serde(default = "default_as_true")]
@@ -674,6 +691,8 @@ pub struct Config {
     pub layout: Option<Layout>,
     pub name: String,
     pub start_directory: StartDirectory,
+    #[derivative(Default(value = "None"))]
+    pub tmux_options: Option<String>,
     #[serde(default)]
     pub windows: Vec<Window>,
 }
@@ -883,26 +902,25 @@ mod tests {
     }
 
     #[test]
-    fn test_run_tmux_command_does_not_receive_an_attach_command_when_attached_false() {
+    fn test_it_passes_tmux_options_to_tmux_when_present() {
+        let tmux_options = "-f another-one.conf".to_string();
         let config = Config {
             attached: false,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: None,
+            name: "foo".to_string(),
+            tmux_options: Some(tmux_options.clone()),
             windows: vec![Window {
                 layout: None,
                 name: Some(String::from("a window")),
                 panes: Vec::new(),
                 start_directory: None,
             }],
+            ..Config::default()
         };
 
         let mut tmux_command_runner = MockTmuxCommandRunner::new();
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
+            .once()
             .withf(|command: &[String], _| {
                 *command
                     == vec![
@@ -917,15 +935,113 @@ mod tests {
                         "pane-base-index".to_string(),
                     ]
             })
-            .with(always(), eq(false))
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
+        // NOTE: This is silly but prevents duplication.
+        let tmux_options_clone = tmux_options.clone();
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
+            .once()
+            .withf(move |command: &[String], _| {
+                *command
+                    == vec![
+                        &tmux_options_clone,
+                        "new-session",
+                        "-d",
+                        "-s",
+                        "foo",
+                        "-n",
+                        "a window",
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+        let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
+    fn test_it_doesnt_pass_tmux_options_to_tmux_when_absent() {
+        let config = Config {
+            attached: false,
+            name: "foo".to_string(),
+            tmux_options: None,
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+            ..Config::default()
+        };
+
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(|command: &[String], _| {
+                *command
+                    == vec![
+                        "start-server".to_string(),
+                        ";".to_string(),
+                        "show-option".to_string(),
+                        "-g".to_string(),
+                        "base-index".to_string(),
+                        ";".to_string(),
+                        "show-window-option".to_string(),
+                        "-g".to_string(),
+                        "pane-base-index".to_string(),
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(move |command: &[String], _| {
+                *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+        let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
+    fn test_run_tmux_command_does_not_receive_an_attach_command_when_attached_false() {
+        let config = Config {
+            attached: false,
+            name: "foo".to_string(),
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+            ..Config::default()
+        };
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(|command: &[String], _| {
+                *command
+                    == vec![
+                        "start-server".to_string(),
+                        ";".to_string(),
+                        "show-option".to_string(),
+                        "-g".to_string(),
+                        "base-index".to_string(),
+                        ";".to_string(),
+                        "show-window-option".to_string(),
+                        "-g".to_string(),
+                        "pane-base-index".to_string(),
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
             .withf(|command: &[String], _| {
                 *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
-            .with(always(), eq(false))
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
         let _ = run_start_(config, &tmux_command_runner);
     }
@@ -934,17 +1050,14 @@ mod tests {
     fn test_run_tmux_command_does_receive_an_attach_command_when_attached_true() {
         let config = Config {
             attached: true,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: None,
+            name: "foo".to_string(),
             windows: vec![Window {
                 layout: None,
                 name: Some(String::from("a window")),
                 panes: Vec::new(),
                 start_directory: None,
             }],
+            ..Config::default()
         };
 
         let mut tmux_command_runner = MockTmuxCommandRunner::new();
@@ -1197,18 +1310,14 @@ mod tests {
     #[test]
     fn it_uses_no_start_directory_when_none_present_for_session_start_directory() {
         let config = Config {
-            attached: true,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
             name: String::from("foo"),
-            start_directory: None,
             windows: vec![Window {
                 layout: None,
                 name: Some(String::from("a window")),
                 panes: Vec::new(),
                 start_directory: None,
             }],
+            ..Config::default()
         };
 
         let actual = build_session_start_directory(&config);
@@ -1219,13 +1328,9 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_session_start_directory(
     ) {
         let config = Config {
-            attached: true,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
-            windows: Vec::new(),
+            ..Config::default()
         };
         let expected = Some(String::from("/foo/bar"));
         let actual = build_session_start_directory(&config);
@@ -1235,10 +1340,6 @@ mod tests {
     #[test]
     fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory() {
         let config = Config {
-            attached: true,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
             windows: vec![Window {
@@ -1247,6 +1348,8 @@ mod tests {
                 panes: Vec::new(),
                 start_directory: Some(String::from("/bar/baz")),
             }],
+
+            ..Config::default()
         };
         let expected = Some(String::from("/bar/baz"));
         let actual = build_session_start_directory(&config);
@@ -1480,14 +1583,10 @@ mod tests {
     #[test]
     fn it_computes_the_expected_commands() {
         let config = Config {
-            attached: false,
-            hooks: vec![],
-            layout: None,
             name: String::from("most basic config"),
-            pane_name_user_option: None,
-            start_directory: None,
-            windows: vec![],
+            ..Config::default()
         };
+
         let expected = vec![(
             vec![
                 String::from("new-session"),
