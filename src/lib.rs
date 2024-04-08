@@ -908,7 +908,7 @@ mod tests {
 
     #[test]
     fn test_it_passes_tmux_options_to_tmux_when_present() {
-        let tmux_options = "-f another-one.conf".to_string();
+        let tmux_options = "another-one.conf".to_string();
         let config = Config {
             attached: false,
             name: "foo".to_string(),
@@ -942,15 +942,14 @@ mod tests {
             })
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
-        // NOTE: This is silly but prevents duplication.
-        let tmux_options_clone = tmux_options.clone();
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
             .withf(move |command: &[String], _| {
                 *command
                     == vec![
-                        &tmux_options_clone,
+                        "-f",
+                        "another-one.conf",
                         "new-session",
                         "-d",
                         "-s",
