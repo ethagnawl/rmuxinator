@@ -360,7 +360,12 @@ fn convert_config_to_tmux_commands(
         let prefixed_commands = commands
             .into_iter()
             .map(|(mut nested_vec, bool)| {
+                // NOTE: If the full string (e.g. -f /tmp/custom.conf) is
+                // used it results in an error. There's something up with
+                // the whitespace or similar which results in the flag
+                // being consumed and the shell trying to execute the path.
                 nested_vec.insert(0, tmux_options.clone());
+                nested_vec.insert(0, "-f".to_string());
                 (nested_vec, bool)
             })
             .collect();
