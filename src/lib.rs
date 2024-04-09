@@ -364,6 +364,8 @@ fn convert_config_to_tmux_commands(
         // the whitespace or similar which results in the flag
         // being consumed and the shell trying to execute the path.
         let tmux_options_ = tmux_options.clone();
+        // TODO: Can we use split_inclusive to also cleanly handle flags with
+        // no arguments?
         let tmux_options_parts: Vec<&str> = tmux_options_.split(" ").collect();
         let tmux_option_strs: Vec<String> = tmux_options_parts
             .clone()
@@ -963,6 +965,64 @@ mod tests {
                     == vec![
                         "-f",
                         "another-one.conf",
+                        "new-session",
+                        "-d",
+                        "-s",
+                        "foo",
+                        "-n",
+                        "a window",
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+        let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
+    fn test_it_passes_multiple_tmux_options_to_tmux_when_present() {
+        let tmux_options = "-f another-one.conf -L custom-socket".to_string();
+        let config = Config {
+            attached: false,
+            name: "foo".to_string(),
+            tmux_options: Some(tmux_options.clone()),
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+            ..Config::default()
+        };
+
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(|command: &[String], _| {
+                *command
+                    == vec![
+                        "start-server".to_string(),
+                        ";".to_string(),
+                        "show-option".to_string(),
+                        "-g".to_string(),
+                        "base-index".to_string(),
+                        ";".to_string(),
+                        "show-window-option".to_string(),
+                        "-g".to_string(),
+                        "pane-base-index".to_string(),
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(move |command: &[String], _| {
+                *command
+                    == vec![
+                        "-f",
+                        "another-one.conf",
+                        "-L",
+                        "custom-socket",
                         "new-session",
                         "-d",
                         "-s",
