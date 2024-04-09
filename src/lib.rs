@@ -386,10 +386,10 @@ fn convert_config_to_tmux_commands(
     }
 
     if let Some(tmux_options) = config.tmux_options.clone() {
-        build_commands_with_tmux_options_prefix(tmux_options, commands)
-    } else {
-        commands
+        commands = build_commands_with_tmux_options_prefix(tmux_options, commands);
     }
+
+    commands
 }
 
 #[derive(Debug, PartialEq)]
