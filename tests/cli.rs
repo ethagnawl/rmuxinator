@@ -1,6 +1,7 @@
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::env;
+use std::ffi::OsStr;
 use std::io::Write;
 use std::process::Command;
 use tempfile::NamedTempFile;
@@ -12,32 +13,53 @@ use tempfile::NamedTempFile;
 
 #[test]
 fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Error>> {
-    let mut file = NamedTempFile::new()?;
+    // NOTE: Use known/good pane/base-index via a temporary tmux config file
+    // because host system's tmux config can cause this test to fail if
+    // non-default values are used.
+    let mut temp_tmux_config = NamedTempFile::new()?;
     let file_contents = r#"
+    set -g base-index 0
+    setw -g pane-base-index 0
+    "#;
+    writeln!(temp_tmux_config, "{}", file_contents)?;
+
+    let temp_tmux_config_file_flag = format!(
+        "-f /tmp/{}",
+        temp_tmux_config
+            .path()
+            .file_name()
+            .and_then(OsStr::to_str)
+            .unwrap()
+    );
+
+    let mut config_file = NamedTempFile::new()?;
+    let file_contents = format!(
+        r#"
         name = "debug"
+        tmux_options = "{}"
         [[windows]]
           name = "one"
         [[windows]]
           name = "two"
-        "#;
-    writeln!(file, "{}", file_contents)?;
+        "#,
+        temp_tmux_config_file_flag
+    );
+    writeln!(config_file, "{}", file_contents)?;
 
-    // NOTE: The hardcoded 1 will cause the test to fail if the user is using
-    // a non-default base-index (i.e. > 0). Once support is added for providing
-    // a custom tmux config file, this test case will become much more robust.
-    // We can write a temp config file using known/good/expected values and
-    // then provide that to the CLI invocation.
-    // The alternative would be to expose get_tmux_base_indices and use it to
-    // dynamically insert the window index but the custom config approach seems
-    // more elegant.
     let expected = vec![
-        "tmux new-session -d -s debug -n one".to_string(),
-        "tmux new-window -t debug:1 -n two".to_string(),
+        format!(
+            "tmux {} new-session -d -s debug -n one",
+            temp_tmux_config_file_flag
+        ),
+        format!(
+            "tmux {} new-window -t debug:1 -n two",
+            temp_tmux_config_file_flag
+        ),
     ]
     .join("\n");
     Command::cargo_bin(env!("CARGO_PKG_NAME"))?
         .arg("debug")
-        .arg(file.path())
+        .arg(config_file.path())
         .assert()
         .success()
         .stdout(predicate::str::contains(expected));

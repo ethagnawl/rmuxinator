@@ -254,6 +254,9 @@ fn build_commands_with_tmux_options_prefix(
     // in an error. There's something up with the whitespace or similar which
     // results in the flag being consumed and the shell trying to execute the
     // path to the config file.
+    // TODO: Ideally we'd do _some_ amount of validation of these arguments.
+    // Right now, anything and everything is being passed through and can/will
+    // cause tmux errors.
     let tmux_options_parts: Vec<&str> = tmux_options.split(" ").collect();
     let tmux_option_strs: Vec<String> = tmux_options_parts
         .clone()
@@ -395,22 +398,33 @@ struct TmuxBaseIndices {
     pane_base_index: usize,
 }
 
-fn get_tmux_base_indices(tmux_command_runner: &dyn TmuxCommandRunner) -> TmuxBaseIndices {
+fn get_tmux_base_indices(
+    config: &Config,
+    tmux_command_runner: &dyn TmuxCommandRunner,
+) -> TmuxBaseIndices {
     // `args` will result in the following command:
     // `tmux start-server\; show-option -g base-index\; show-window-option -g pane-base-index`
-    let args = vec![
-        "start-server".to_string(),
-        ";".to_string(),
-        "show-option".to_string(),
-        "-g".to_string(),
-        "base-index".to_string(),
-        ";".to_string(),
-        "show-window-option".to_string(),
-        "-g".to_string(),
-        "pane-base-index".to_string(),
-    ];
 
-    let output = tmux_command_runner.run_tmux_command(&args, false);
+    let mut commands = vec![(
+        vec![
+            "start-server".to_string(),
+            ";".to_string(),
+            "show-option".to_string(),
+            "-g".to_string(),
+            "base-index".to_string(),
+            ";".to_string(),
+            "show-window-option".to_string(),
+            "-g".to_string(),
+            "pane-base-index".to_string(),
+        ],
+        false,
+    )];
+
+    if let Some(tmux_options) = config.tmux_options.clone() {
+        commands = build_commands_with_tmux_options_prefix(tmux_options, commands);
+    }
+
+    let output = tmux_command_runner.run_tmux_command(&commands[0].0, commands[0].1);
     let pane_base_index_re = Regex::new(r"(?:base-index (?P<base_index>\d+))?(?:.*\n)?(?:pane-base-index (?P<pane_base_index>\d+))?").unwrap();
 
     // NOTE: This is a bit redundant but feels _better_ than using Option
@@ -446,7 +460,7 @@ fn run_start_(
     config: Config,
     tmux_command_runner: &dyn TmuxCommandRunner,
 ) -> Result<(), Box<dyn Error>> {
-    let base_indices = get_tmux_base_indices(tmux_command_runner);
+    let base_indices = get_tmux_base_indices(&config, tmux_command_runner);
     let commands = convert_config_to_tmux_commands(&config, base_indices);
     for command in commands {
         // TODO: run_tmux_command output should be handled and used to report
@@ -471,7 +485,7 @@ fn run_debug_(
     config: Config,
     tmux_command_runner: &dyn TmuxCommandRunner,
 ) -> Result<(), Box<dyn Error>> {
-    let base_indices = get_tmux_base_indices(tmux_command_runner);
+    let base_indices = get_tmux_base_indices(&config, tmux_command_runner);
     for command in convert_config_to_tmux_commands(&config, base_indices) {
         println!("tmux {}", command.0.join(" "));
     }
@@ -800,7 +814,8 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 0;
         let actual = indices.base_index;
         assert_eq!(expected, actual);
@@ -820,7 +835,8 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 0;
         let actual = indices.pane_base_index;
         assert_eq!(expected, actual);
@@ -840,7 +856,9 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 0;
         let actual = indices.base_index;
         assert_eq!(expected, actual);
@@ -860,7 +878,8 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 0;
         let actual = indices.base_index;
         assert_eq!(expected, actual);
@@ -880,7 +899,8 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 99;
         let actual = indices.base_index;
         assert_eq!(expected, actual);
@@ -914,7 +934,8 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 99;
         let actual = indices.pane_base_index;
         assert_eq!(expected, actual);
@@ -943,6 +964,8 @@ mod tests {
             .withf(|command: &[String], _| {
                 *command
                     == vec![
+                        "-f".to_string(),
+                        "another-one.conf".to_string(),
                         "start-server".to_string(),
                         ";".to_string(),
                         "show-option".to_string(),
@@ -999,6 +1022,10 @@ mod tests {
             .withf(|command: &[String], _| {
                 *command
                     == vec![
+                        "-f".to_string(),
+                        "another-one.conf".to_string(),
+                        "-L".to_string(),
+                        "custom-socket".to_string(),
                         "start-server".to_string(),
                         ";".to_string(),
                         "show-option".to_string(),
