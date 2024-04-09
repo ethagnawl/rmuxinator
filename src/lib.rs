@@ -252,6 +252,8 @@ fn convert_config_to_tmux_commands(
 ) -> Vec<(Vec<String>, bool)> {
     // TODO: We should always start the server -- especially when using -f
     //let mut commands = vec![(vec![String::from("start-server")], false)];
+    // TODO: We should consider adding sensible line endings
+    // to delineate command boundaries.
     let mut commands = vec![];
 
     let session_name = &config.name;
@@ -353,19 +355,25 @@ fn convert_config_to_tmux_commands(
         commands.push((attach_args, true));
     }
 
-    // TODO: We should consider adding sensible line endings
-    // to delineate command boundaries.
-    //let terminator = ";";
     if let Some(tmux_options) = config.tmux_options.clone() {
+        // NOTE: tmux_options should be validated
+        // NOTE: Why not just use a TOML array for tmux_options?
+        // NOTE: This would all be simplified if we just split tmux_options
+        // into a vec and then used nested_vec to extend that. It should work
+        // but the type of the split values will need to be made into Strings
+        // NOTE: If the full string (e.g. -f /tmp/custom.conf) is
+        // used it results in an error. There's something up with
+        // the whitespace or similar which results in the flag
+        // being consumed and the shell trying to execute the path.
+        let tmux_options_ = tmux_options.clone();
+        let tmux_options_parts: Vec<&str> = tmux_options_.split(" ").collect();
+        let tmux_options_parts_rev: Vec<&str> = tmux_options_parts.into_iter().rev().collect();
         let prefixed_commands = commands
             .into_iter()
             .map(|(mut nested_vec, bool)| {
-                // NOTE: If the full string (e.g. -f /tmp/custom.conf) is
-                // used it results in an error. There's something up with
-                // the whitespace or similar which results in the flag
-                // being consumed and the shell trying to execute the path.
-                nested_vec.insert(0, tmux_options.clone());
-                nested_vec.insert(0, "-f".to_string());
+                for part in tmux_options_parts_rev.clone() {
+                    nested_vec.insert(0, part.to_string());
+                }
                 (nested_vec, bool)
             })
             .collect();
@@ -908,7 +916,7 @@ mod tests {
 
     #[test]
     fn test_it_passes_tmux_options_to_tmux_when_present() {
-        let tmux_options = "another-one.conf".to_string();
+        let tmux_options = "-f another-one.conf".to_string();
         let config = Config {
             attached: false,
             name: "foo".to_string(),
