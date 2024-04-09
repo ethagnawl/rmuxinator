@@ -38,6 +38,7 @@ layout = "main-horizontal"
 name = "example"
 pane_name_user_option = "custom_pane_title"
 start_directory = "/home/peter/projects/vim"
+tmux_options = "-f /tmp/tmux.work.conf -L work-socket"
 
 [[hooks]]
   command = "run-shell \"tmux display-message 'Hi from pane-focus-in hook!'\""
@@ -89,11 +90,12 @@ Optional attributes will be noted below.
 - `windows` (array; see dedicated entry)
 
 ###### Optional
--  attached (bool; defaults to `true`; whether or not to attach to newly created tmux session)
+-  `attached` (bool; defaults to `true`; whether or not to attach to newly created tmux session)
 - `hooks` (array; see dedicated entry)
 - `layout` (string; preset tmux layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled")
 - `pane_name_user_option` (string; must have matching entry in .tmux.conf (e.g.  `set -g pane-border-format "#{@custom_pane_title}"`)
 - `start_directory` (string)
+- `tmux_options` (string; CLI flags to pass through to tmux)
 
 ##### Hooks
 - `command` (string; must use tmux's `run_shell`; see tmux docs)
@@ -215,8 +217,7 @@ require writing a custom Serde deserializer for the Config type.
 config (I'm not convinced this is necessary)
 - Other CLI commands? (stop session, create/edit/delete project)
 - Use named args in calls to format! where possible
-- Implement default for Config struct
-- Accept optional tmux config file (i.e. `tmux -f ./foo.conf ...`)
+- (Fully) implement default/derivative for Config struct
 
 ## Platforms
 Here are the platforms rmuxinator is known to work on:

@@ -1,5 +1,5 @@
 name = "custom-tmux-conf"
-tmux_options = "-f /tmp/tmux.override.conf -f /tmp/tmux.override-2.conf"
+tmux_options = "-f /tmp/tmux.override.conf -f /tmp/tmux.override-2.conf -v -2 -L NICE"
 
 [[windows]]
   name = "one"
