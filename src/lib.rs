@@ -246,6 +246,33 @@ pub fn test_for_tmux(tmux_command: &str) -> bool {
     output.status.success()
 }
 
+fn build_commands_with_tmux_options_prefix(
+    tmux_options: String,
+    commands: Vec<(Vec<String>, bool)>,
+) -> Vec<(Vec<String>, bool)> {
+    // NOTE: If the full string (e.g. -f /tmp/custom.conf) is used it results
+    // in an error. There's something up with the whitespace or similar which
+    // results in the flag being consumed and the shell trying to execute the
+    // path to the config file.
+    let tmux_options_parts: Vec<&str> = tmux_options.split(" ").collect();
+    let tmux_option_strs: Vec<String> = tmux_options_parts
+        .clone()
+        .into_iter()
+        .map(|x| x.to_string())
+        .collect();
+    commands
+        .into_iter()
+        .map(|(nested_vec, bool)| {
+            // (["new-session", "-d", "-s", "new-sesh", "-n", "one"], false)
+            // becomes
+            // (["-f", "/tmp/tmux.custom.conf", "new-session", "-d", "-s", "new-sesh", "-n", "one"], false)
+            let mut command = tmux_option_strs.clone();
+            command.extend(nested_vec.iter().cloned());
+            (command, bool)
+        })
+        .collect()
+}
+
 fn convert_config_to_tmux_commands(
     config: &Config,
     base_indices: TmuxBaseIndices,
@@ -356,35 +383,7 @@ fn convert_config_to_tmux_commands(
     }
 
     if let Some(tmux_options) = config.tmux_options.clone() {
-        // TODO: This logic warrants its own function
-        // NOTE: tmux_options should be validated
-        // NOTE: Why not just use a TOML array for tmux_options?
-        // NOTE: If the full string (e.g. -f /tmp/custom.conf) is
-        // used it results in an error. There's something up with
-        // the whitespace or similar which results in the flag
-        // being consumed and the shell trying to execute the path.
-        let tmux_options_ = tmux_options.clone();
-        // TODO: Can we use split_inclusive to also cleanly handle flags with
-        // no arguments?
-        let tmux_options_parts: Vec<&str> = tmux_options_.split(" ").collect();
-        let tmux_option_strs: Vec<String> = tmux_options_parts
-            .clone()
-            .into_iter()
-            .map(|x| x.to_string())
-            .collect();
-
-        let prefixed_commands = commands
-            .into_iter()
-            .map(|(nested_vec, bool)| {
-                // (["-n", "foo"], true)
-                // becomes
-                // (["-f", "/tmp/tmux.custom.conf", "-n", "foo"], true)
-                let mut tmux_options = tmux_option_strs.clone();
-                tmux_options.extend(nested_vec.iter().cloned());
-                (tmux_options, bool)
-            })
-            .collect();
-        prefixed_commands
+        build_commands_with_tmux_options_prefix(tmux_options, commands)
     } else {
         commands
     }
