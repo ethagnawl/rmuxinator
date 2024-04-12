@@ -1,0 +1,13 @@
+name = "custom-tmux-options"
+tmux_options = "-f /tmp/tmux.override.conf -f /tmp/tmux.override-2.conf -v -2 -L NICE"
+
+[[windows]]
+  name = "one"
+  [[windows.panes]]
+  commands = ["echo window-one-pane-one"]
+
+[[windows]]
+  name = "two"
+  [[windows.panes]]
+  commands = ["echo window-two-pane-one"]
+

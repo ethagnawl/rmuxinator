@@ -1,4 +1,5 @@
 use clap::{App, AppSettings, Arg, SubCommand};
+use derivative::Derivative;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -245,10 +246,42 @@ pub fn test_for_tmux(tmux_command: &str) -> bool {
     output.status.success()
 }
 
+fn build_commands_with_tmux_options_prefix(
+    tmux_options: String,
+    commands: Vec<(Vec<String>, bool)>,
+) -> Vec<(Vec<String>, bool)> {
+    // NOTE: If the full string (e.g. -f /tmp/custom.conf) is used it results
+    // in an error. There's something up with the whitespace or similar which
+    // results in the flag being consumed and the shell trying to execute the
+    // path to the config file.
+    // TODO: Ideally we'd do _some_ amount of validation of these arguments.
+    // Right now, anything and everything is being passed through and can/will
+    // cause tmux errors.
+    let tmux_options_parts: Vec<&str> = tmux_options.split(" ").collect();
+    let tmux_option_strs: Vec<String> = tmux_options_parts
+        .clone()
+        .into_iter()
+        .map(|x| x.to_string())
+        .collect();
+    commands
+        .into_iter()
+        .map(|(nested_vec, bool)| {
+            // (["new-session", "-d", "-s", "new-sesh", "-n", "one"], false)
+            // becomes
+            // (["-f", "/tmp/tmux.custom.conf", "new-session", "-d", "-s", "new-sesh", "-n", "one"], false)
+            let mut command = tmux_option_strs.clone();
+            command.extend(nested_vec.iter().cloned());
+            (command, bool)
+        })
+        .collect()
+}
+
 fn convert_config_to_tmux_commands(
     config: &Config,
     base_indices: TmuxBaseIndices,
 ) -> Vec<(Vec<String>, bool)> {
+    // TODO: We should consider adding sensible line endings
+    // to clearly delineate command boundaries.
     let mut commands = vec![];
 
     let session_name = &config.name;
@@ -350,6 +383,10 @@ fn convert_config_to_tmux_commands(
         commands.push((attach_args, true));
     }
 
+    if let Some(tmux_options) = config.tmux_options.clone() {
+        commands = build_commands_with_tmux_options_prefix(tmux_options, commands);
+    }
+
     commands
 }
 
@@ -359,22 +396,33 @@ struct TmuxBaseIndices {
     pane_base_index: usize,
 }
 
-fn get_tmux_base_indices(tmux_command_runner: &dyn TmuxCommandRunner) -> TmuxBaseIndices {
+fn get_tmux_base_indices(
+    config: &Config,
+    tmux_command_runner: &dyn TmuxCommandRunner,
+) -> TmuxBaseIndices {
     // `args` will result in the following command:
     // `tmux start-server\; show-option -g base-index\; show-window-option -g pane-base-index`
-    let args = vec![
-        "start-server".to_string(),
-        ";".to_string(),
-        "show-option".to_string(),
-        "-g".to_string(),
-        "base-index".to_string(),
-        ";".to_string(),
-        "show-window-option".to_string(),
-        "-g".to_string(),
-        "pane-base-index".to_string(),
-    ];
 
-    let output = tmux_command_runner.run_tmux_command(&args, false);
+    let mut commands = vec![(
+        vec![
+            "start-server".to_string(),
+            ";".to_string(),
+            "show-option".to_string(),
+            "-g".to_string(),
+            "base-index".to_string(),
+            ";".to_string(),
+            "show-window-option".to_string(),
+            "-g".to_string(),
+            "pane-base-index".to_string(),
+        ],
+        false,
+    )];
+
+    if let Some(tmux_options) = config.tmux_options.clone() {
+        commands = build_commands_with_tmux_options_prefix(tmux_options, commands);
+    }
+
+    let output = tmux_command_runner.run_tmux_command(&commands[0].0, commands[0].1);
     let pane_base_index_re = Regex::new(r"(?:base-index (?P<base_index>\d+))?(?:.*\n)?(?:pane-base-index (?P<pane_base_index>\d+))?").unwrap();
 
     // NOTE: This is a bit redundant but feels _better_ than using Option
@@ -410,7 +458,7 @@ fn run_start_(
     config: Config,
     tmux_command_runner: &dyn TmuxCommandRunner,
 ) -> Result<(), Box<dyn Error>> {
-    let base_indices = get_tmux_base_indices(tmux_command_runner);
+    let base_indices = get_tmux_base_indices(&config, tmux_command_runner);
     let commands = convert_config_to_tmux_commands(&config, base_indices);
     for command in commands {
         // TODO: run_tmux_command output should be handled and used to report
@@ -435,7 +483,7 @@ fn run_debug_(
     config: Config,
     tmux_command_runner: &dyn TmuxCommandRunner,
 ) -> Result<(), Box<dyn Error>> {
-    let base_indices = get_tmux_base_indices(tmux_command_runner);
+    let base_indices = get_tmux_base_indices(&config, tmux_command_runner);
     for command in convert_config_to_tmux_commands(&config, base_indices) {
         println!("tmux {}", command.0.join(" "));
     }
@@ -663,7 +711,7 @@ fn default_as_true() -> bool {
     true
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Derivative, Debug, Default, Deserialize, Serialize)]
 pub struct Config {
     // TODO: add base_index w/ default?
     #[serde(default = "default_as_true")]
@@ -674,6 +722,8 @@ pub struct Config {
     pub layout: Option<Layout>,
     pub name: String,
     pub start_directory: StartDirectory,
+    #[derivative(Default(value = "None"))]
+    pub tmux_options: Option<String>,
     #[serde(default)]
     pub windows: Vec<Window>,
 }
@@ -762,7 +812,8 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 0;
         let actual = indices.base_index;
         assert_eq!(expected, actual);
@@ -782,7 +833,8 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 0;
         let actual = indices.pane_base_index;
         assert_eq!(expected, actual);
@@ -802,7 +854,9 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 0;
         let actual = indices.base_index;
         assert_eq!(expected, actual);
@@ -822,7 +876,8 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 0;
         let actual = indices.base_index;
         assert_eq!(expected, actual);
@@ -842,7 +897,8 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 99;
         let actual = indices.base_index;
         assert_eq!(expected, actual);
@@ -853,22 +909,22 @@ mod tests {
         let mut tmux_command_runner = MockTmuxCommandRunner::new();
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
-            .withf(|command: &[String], _| {
-                *command
-                    == vec![
-                        "start-server".to_string(),
-                        ";".to_string(),
-                        "show-option".to_string(),
-                        "-g".to_string(),
-                        "base-index".to_string(),
-                        ";".to_string(),
-                        "show-window-option".to_string(),
-                        "-g".to_string(),
-                        "pane-base-index".to_string(),
-                    ]
+            .once()
+            .withf(|command: &[String], bool| {
+                *bool == false
+                    && *command
+                        == vec![
+                            "start-server".to_string(),
+                            ";".to_string(),
+                            "show-option".to_string(),
+                            "-g".to_string(),
+                            "base-index".to_string(),
+                            ";".to_string(),
+                            "show-window-option".to_string(),
+                            "-g".to_string(),
+                            "pane-base-index".to_string(),
+                        ]
             })
-            .with(always(), eq(false))
             .returning(|_y, _z| {
                 Ok(create_dummy_output_instance(
                     0,
@@ -876,33 +932,152 @@ mod tests {
                     vec![],
                 ))
             });
-        let indices = get_tmux_base_indices(&tmux_command_runner);
+        let config = Config::default();
+        let indices = get_tmux_base_indices(&config, &tmux_command_runner);
         let expected = 99;
         let actual = indices.pane_base_index;
         assert_eq!(expected, actual);
     }
 
     #[test]
-    fn test_run_tmux_command_does_not_receive_an_attach_command_when_attached_false() {
+    fn test_it_passes_tmux_options_to_tmux_when_present() {
+        let tmux_options = "-f another-one.conf".to_string();
         let config = Config {
             attached: false,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: None,
+            name: "foo".to_string(),
+            tmux_options: Some(tmux_options.clone()),
             windows: vec![Window {
                 layout: None,
                 name: Some(String::from("a window")),
                 panes: Vec::new(),
                 start_directory: None,
             }],
+            ..Config::default()
         };
 
         let mut tmux_command_runner = MockTmuxCommandRunner::new();
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
+            .once()
+            .withf(|command: &[String], _| {
+                *command
+                    == vec![
+                        "-f".to_string(),
+                        "another-one.conf".to_string(),
+                        "start-server".to_string(),
+                        ";".to_string(),
+                        "show-option".to_string(),
+                        "-g".to_string(),
+                        "base-index".to_string(),
+                        ";".to_string(),
+                        "show-window-option".to_string(),
+                        "-g".to_string(),
+                        "pane-base-index".to_string(),
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(move |command: &[String], _| {
+                *command
+                    == vec![
+                        "-f",
+                        "another-one.conf",
+                        "new-session",
+                        "-d",
+                        "-s",
+                        "foo",
+                        "-n",
+                        "a window",
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+        let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
+    fn test_it_passes_multiple_tmux_options_to_tmux_when_present() {
+        let tmux_options = "-f another-one.conf -L custom-socket".to_string();
+        let config = Config {
+            attached: false,
+            name: "foo".to_string(),
+            tmux_options: Some(tmux_options.clone()),
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+            ..Config::default()
+        };
+
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(|command: &[String], _| {
+                *command
+                    == vec![
+                        "-f".to_string(),
+                        "another-one.conf".to_string(),
+                        "-L".to_string(),
+                        "custom-socket".to_string(),
+                        "start-server".to_string(),
+                        ";".to_string(),
+                        "show-option".to_string(),
+                        "-g".to_string(),
+                        "base-index".to_string(),
+                        ";".to_string(),
+                        "show-window-option".to_string(),
+                        "-g".to_string(),
+                        "pane-base-index".to_string(),
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(move |command: &[String], _| {
+                *command
+                    == vec![
+                        "-f",
+                        "another-one.conf",
+                        "-L",
+                        "custom-socket",
+                        "new-session",
+                        "-d",
+                        "-s",
+                        "foo",
+                        "-n",
+                        "a window",
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+        let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
+    fn test_it_doesnt_pass_tmux_options_to_tmux_when_absent() {
+        let config = Config {
+            attached: false,
+            name: "foo".to_string(),
+            tmux_options: None,
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+            ..Config::default()
+        };
+
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
             .withf(|command: &[String], _| {
                 *command
                     == vec![
@@ -917,15 +1092,58 @@ mod tests {
                         "pane-base-index".to_string(),
                     ]
             })
-            .with(always(), eq(false))
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
-            .withf(|command: &[String], _| {
+            .once()
+            .withf(move |command: &[String], _| {
                 *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
-            .with(always(), eq(false))
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+        let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
+    fn test_run_tmux_command_does_not_receive_an_attach_command_when_attached_false() {
+        let config = Config {
+            attached: false,
+            name: "foo".to_string(),
+            windows: vec![Window {
+                layout: None,
+                name: Some(String::from("a window")),
+                panes: Vec::new(),
+                start_directory: None,
+            }],
+            ..Config::default()
+        };
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(|command: &[String], _| {
+                *command
+                    == vec![
+                        "start-server".to_string(),
+                        ";".to_string(),
+                        "show-option".to_string(),
+                        "-g".to_string(),
+                        "base-index".to_string(),
+                        ";".to_string(),
+                        "show-window-option".to_string(),
+                        "-g".to_string(),
+                        "pane-base-index".to_string(),
+                    ]
+            })
+            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .once()
+            .withf(|command: &[String], bool| {
+                *bool == false
+                    && *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+            })
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
         let _ = run_start_(config, &tmux_command_runner);
     }
@@ -934,54 +1152,52 @@ mod tests {
     fn test_run_tmux_command_does_receive_an_attach_command_when_attached_true() {
         let config = Config {
             attached: true,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
-            name: String::from("foo"),
-            start_directory: None,
+            name: "foo".to_string(),
             windows: vec![Window {
                 layout: None,
                 name: Some(String::from("a window")),
                 panes: Vec::new(),
                 start_directory: None,
             }],
+            ..Config::default()
         };
 
         let mut tmux_command_runner = MockTmuxCommandRunner::new();
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
-            .withf(|command: &[String], _| {
-                *command
-                    == vec![
-                        "start-server".to_string(),
-                        ";".to_string(),
-                        "show-option".to_string(),
-                        "-g".to_string(),
-                        "base-index".to_string(),
-                        ";".to_string(),
-                        "show-window-option".to_string(),
-                        "-g".to_string(),
-                        "pane-base-index".to_string(),
-                    ]
+            .once()
+            .withf(|command: &[String], bool| {
+                *bool == false
+                    && *command
+                        == vec![
+                            "start-server".to_string(),
+                            ";".to_string(),
+                            "show-option".to_string(),
+                            "-g".to_string(),
+                            "base-index".to_string(),
+                            ";".to_string(),
+                            "show-window-option".to_string(),
+                            "-g".to_string(),
+                            "pane-base-index".to_string(),
+                        ]
             })
-            .with(always(), eq(false))
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
-            .withf(|command: &[String], _| {
-                *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+            .once()
+            .withf(|command: &[String], bool| {
+                *bool == false
+                    && *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
-            .with(always(), eq(false))
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
-            .withf(|command: &[String], _| *command == vec!["-u", "attach-session", "-t", "foo"])
-            .with(always(), eq(true))
+            .once()
+            .withf(|command: &[String], bool| {
+                *bool == true && *command == vec!["-u", "attach-session", "-t", "foo"]
+            })
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         let _ = run_start_(config, &tmux_command_runner);
@@ -1197,18 +1413,14 @@ mod tests {
     #[test]
     fn it_uses_no_start_directory_when_none_present_for_session_start_directory() {
         let config = Config {
-            attached: true,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
             name: String::from("foo"),
-            start_directory: None,
             windows: vec![Window {
                 layout: None,
                 name: Some(String::from("a window")),
                 panes: Vec::new(),
                 start_directory: None,
             }],
+            ..Config::default()
         };
 
         let actual = build_session_start_directory(&config);
@@ -1219,13 +1431,9 @@ mod tests {
     fn it_uses_configs_start_directory_when_no_window_start_directory_present_for_session_start_directory(
     ) {
         let config = Config {
-            attached: true,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/foo/bar")),
-            windows: Vec::new(),
+            ..Config::default()
         };
         let expected = Some(String::from("/foo/bar"));
         let actual = build_session_start_directory(&config);
@@ -1235,10 +1443,6 @@ mod tests {
     #[test]
     fn it_uses_windows_start_directory_over_configs_start_directory_for_session_start_directory() {
         let config = Config {
-            attached: true,
-            pane_name_user_option: None,
-            hooks: Vec::new(),
-            layout: None,
             name: String::from("foo"),
             start_directory: Some(String::from("/this/is/ignored")),
             windows: vec![Window {
@@ -1247,6 +1451,8 @@ mod tests {
                 panes: Vec::new(),
                 start_directory: Some(String::from("/bar/baz")),
             }],
+
+            ..Config::default()
         };
         let expected = Some(String::from("/bar/baz"));
         let actual = build_session_start_directory(&config);
@@ -1480,14 +1686,10 @@ mod tests {
     #[test]
     fn it_computes_the_expected_commands() {
         let config = Config {
-            attached: false,
-            hooks: vec![],
-            layout: None,
             name: String::from("most basic config"),
-            pane_name_user_option: None,
-            start_directory: None,
-            windows: vec![],
+            ..Config::default()
         };
+
         let expected = vec![(
             vec![
                 String::from("new-session"),

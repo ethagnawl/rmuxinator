@@ -1,7 +1,6 @@
-name = "debug"
+name = "minimal"
 
 [[windows]]
   name = "one"
 [[windows]]
   name = "two"
-
