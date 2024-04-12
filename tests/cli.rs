@@ -16,6 +16,10 @@ fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Erro
     // NOTE: Use known/good pane/base-index via a temporary tmux config file
     // because host system's tmux config can cause this test to fail if
     // non-default values are used.
+    // Also NOTE: If a tmux server using non-standard values is already
+    // running, it may need to be killed in order for these values to be
+    // applied.
+
     let mut temp_tmux_config = NamedTempFile::new()?;
     let file_contents = r#"
 set -g base-index 0

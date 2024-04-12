@@ -174,6 +174,18 @@ let rmuxinator_config = rmuxinator::Config {
 rmuxinator::run_start(rmuxinator_config).map_err(|error| format!("Rmuxinator error: {}", error))
 ```
 
+## Known Issues and Workarounds
+### Custom Tmux Config
+If you provide a custom tmux config file via tmux_options, you may need to
+restart your tmux server (`tmux kill-server`) before some/all of its changes
+will take effect. For example, changes to `base-index` and `pane-base-index`
+are known to require a restart in order to be detected and used as expected.
+
+It might be possible to work around this issue but it needs more thought. The
+heavy handed option would be to have this library explicitly kill and restart
+the tmux server but that could have unintended consequences if other tmux
+sessions are in use.
+
 ## Status
 This project is currently a proof of concept and I'll be duplicating tmuxinator
 features and adding additional improvements as I can find time. Right now, it's
@@ -192,6 +204,7 @@ pane-border-format config option)
 - running pane commands
 - wiring up optional tmux event hooks/callbacks
 - detecting/using tmux server base-index and pane-base-index values
+- accepting custom tmux CLI options via the tmux_options config field
 
 ## Still TODO:
 - Consider building up and executing a single script (a la tmuxinator) instead

@@ -280,10 +280,8 @@ fn convert_config_to_tmux_commands(
     config: &Config,
     base_indices: TmuxBaseIndices,
 ) -> Vec<(Vec<String>, bool)> {
-    // TODO: We should always start the server -- especially when using -f
-    //let mut commands = vec![(vec![String::from("start-server")], false)];
     // TODO: We should consider adding sensible line endings
-    // to delineate command boundaries.
+    // to clearly delineate command boundaries.
     let mut commands = vec![];
 
     let session_name = &config.name;
