@@ -18,8 +18,8 @@ fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Erro
     // non-default values are used.
     let mut temp_tmux_config = NamedTempFile::new()?;
     let file_contents = r#"
-    set -g base-index 0
-    setw -g pane-base-index 0
+set -g base-index 0
+setw -g pane-base-index 0
     "#;
     writeln!(temp_tmux_config, "{}", file_contents)?;
 
@@ -35,12 +35,12 @@ fn it_returns_the_expected_debug_output() -> Result<(), Box<dyn std::error::Erro
     let mut config_file = NamedTempFile::new()?;
     let file_contents = format!(
         r#"
-        name = "debug"
-        tmux_options = "{}"
-        [[windows]]
-          name = "one"
-        [[windows]]
-          name = "two"
+name = "debug"
+tmux_options = "{}"
+[[windows]]
+  name = "one"
+[[windows]]
+  name = "two"
         "#,
         temp_tmux_config_file_flag
     );
