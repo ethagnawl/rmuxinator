@@ -911,22 +911,22 @@ mod tests {
         let mut tmux_command_runner = MockTmuxCommandRunner::new();
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
-            .withf(|command: &[String], _| {
-                *command
-                    == vec![
-                        "start-server".to_string(),
-                        ";".to_string(),
-                        "show-option".to_string(),
-                        "-g".to_string(),
-                        "base-index".to_string(),
-                        ";".to_string(),
-                        "show-window-option".to_string(),
-                        "-g".to_string(),
-                        "pane-base-index".to_string(),
-                    ]
+            .once()
+            .withf(|command: &[String], bool| {
+                *bool == false
+                    && *command
+                        == vec![
+                            "start-server".to_string(),
+                            ";".to_string(),
+                            "show-option".to_string(),
+                            "-g".to_string(),
+                            "base-index".to_string(),
+                            ";".to_string(),
+                            "show-window-option".to_string(),
+                            "-g".to_string(),
+                            "pane-base-index".to_string(),
+                        ]
             })
-            .with(always(), eq(false))
             .returning(|_y, _z| {
                 Ok(create_dummy_output_instance(
                     0,
@@ -1142,8 +1142,9 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], _| {
-                *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+            .withf(|command: &[String], bool| {
+                *bool == false
+                    && *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
         let _ = run_start_(config, &tmux_command_runner);
@@ -1166,38 +1167,39 @@ mod tests {
         let mut tmux_command_runner = MockTmuxCommandRunner::new();
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
-            .withf(|command: &[String], _| {
-                *command
-                    == vec![
-                        "start-server".to_string(),
-                        ";".to_string(),
-                        "show-option".to_string(),
-                        "-g".to_string(),
-                        "base-index".to_string(),
-                        ";".to_string(),
-                        "show-window-option".to_string(),
-                        "-g".to_string(),
-                        "pane-base-index".to_string(),
-                    ]
+            .once()
+            .withf(|command: &[String], bool| {
+                *bool == false
+                    && *command
+                        == vec![
+                            "start-server".to_string(),
+                            ";".to_string(),
+                            "show-option".to_string(),
+                            "-g".to_string(),
+                            "base-index".to_string(),
+                            ";".to_string(),
+                            "show-window-option".to_string(),
+                            "-g".to_string(),
+                            "pane-base-index".to_string(),
+                        ]
             })
-            .with(always(), eq(false))
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
-            .withf(|command: &[String], _| {
-                *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+            .once()
+            .withf(|command: &[String], bool| {
+                *bool == false
+                    && *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
-            .with(always(), eq(false))
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
-            .times(1)
-            .withf(|command: &[String], _| *command == vec!["-u", "attach-session", "-t", "foo"])
-            .with(always(), eq(true))
+            .once()
+            .withf(|command: &[String], bool| {
+                *bool == true && *command == vec!["-u", "attach-session", "-t", "foo"]
+            })
             .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         let _ = run_start_(config, &tmux_command_runner);
