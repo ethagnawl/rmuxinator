@@ -1,5 +1,6 @@
 use clap::{App, AppSettings, Arg, SubCommand};
 use derivative::Derivative;
+use mime_guess::from_path;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -728,10 +729,15 @@ pub struct Config {
     pub windows: Vec<Window>,
 }
 
+fn get_mime_type(file_path: &str) -> String {
+    let mime = from_path(file_path).first_or_octet_stream();
+    mime.to_string()
+}
+
 impl Config {
     pub fn new_from_file_path(config_path: &String) -> Result<Config, String> {
-        // Need to return String in failure case because toml::from_str may
-        // return a toml::de::Error.
+        // Need to return String in failure case because _serde_::from_str may
+        // return a _serde_::de::Error.
         let mut config_file = match File::open(&config_path) {
             Ok(file) => file,
             Err(_) => return Err(String::from("Unable to open config file.")),
@@ -743,11 +749,28 @@ impl Config {
             Err(_) => return Err(String::from("Unable to read config file.")),
         }
 
-        let decoded = toml::from_str(&contents);
+        let config_mime_type = get_mime_type(config_path);
+
+        let decoded = if config_mime_type == "text/x-toml" {
+            match toml::from_str(&contents) {
+                Ok(config) => Ok(config),
+                Err(e) => Err(format!("TOML parsing error: {}", e)),
+            }
+        } else if config_mime_type == "text/x-yaml" {
+            match serde_yml::from_str(&contents) {
+                Ok(config) => Ok(config),
+                Err(e) => Err(format!("YAML parsing error: {}", e)),
+            }
+        } else {
+            Err(format!(
+                "'{}' is not a supported config file type",
+                config_mime_type
+            ))
+        };
 
         match decoded {
             Ok(config) => Ok(config),
-            Err(error) => Err(error.to_string()),
+            Err(error) => Err(error),
         }
     }
 }
