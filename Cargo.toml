@@ -11,9 +11,11 @@ keywords = ["tmux", "productivity"]
 [dependencies]
 clap = "2.33"
 derivative = "2.2.0"
+mime_guess = "2.0"
 mockall = "0.10"
 regex = "1.10"
 serde = { version = "1.0", features = ["derive"] }
+serde_yml = "0.0.12"
 toml = "0.4"
 
 [dev-dependencies]
