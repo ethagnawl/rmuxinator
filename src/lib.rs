@@ -55,26 +55,31 @@ impl TmuxCommandRunner for TmuxWrapper {
     }
 }
 
-fn build_pane_args(session_name: &str, window_index: usize) -> Vec<String> {
+fn build_pane_args(session_name: &str, window_index: usize) -> Vec<Vec<String>> {
     // NOTE: Like tmuxinator does, we want to continually apply the tiled layout
     // after splitting and then _only_ at the very end of the window config
     // constructor context apply the specified or inherited layout. This
     // prevents errors like, "no space for new pane" which occur if the
     // window's current size/layout won't (otherwise) allow it to be split
     // again.
-    // It probably makes sense to declare tiled as the default layout so this
-    // behavior doesn't surprise anyone.
+    // We should document that tiled _is_ used by default when splitting panes
+    // and, that if no other layouts are specified, it will result in tiled
+    // output.
     // See:
     // - https://github.com/ethagnawl/rmuxinator/issues/45
     // - https://www.mail-archive.com/tmux-users@googlegroups.com/msg01241.html
     vec![
-        String::from("split-window"),
-        String::from("-t"),
-        format!("{}:{};", session_name, window_index.to_string()),
-        String::from("select-layout"),
-        String::from("-t"),
-        format!("{}:{}", session_name, window_index.to_string()),
-        String::from("tiled"),
+        vec![
+            String::from("split-window"),
+            String::from("-t"),
+            format!("{}:{}", session_name, window_index.to_string()),
+        ],
+        vec![
+            String::from("select-layout"),
+            String::from("-t"),
+            format!("{}:{}", session_name, window_index.to_string()),
+            String::from("tiled"),
+        ],
     ]
 }
 
@@ -349,7 +354,9 @@ fn convert_config_to_tmux_commands(
             // The "first" pane is created by default by the containing window
             if pane_iterator_index > 0 {
                 let pane_args = build_pane_args(session_name, window_index);
-                commands.push((pane_args, false));
+                for pane_arg in pane_args {
+                    commands.push((pane_arg, false));
+                }
             }
 
             // Conditionally set start_directory for pane.
