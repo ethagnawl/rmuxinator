@@ -602,9 +602,9 @@ pub enum Layout {
 
 impl fmt::Display for Layout {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let pascal_case_hook_name = format!("{:?}", self);
-        let kebab_case_hook_name = convert_pascal_case_to_kebab_case(&pascal_case_hook_name);
-        write!(f, "{}", kebab_case_hook_name)
+        let pascal_case_layout_name = format!("{:?}", self);
+        let kebab_case_layout_name = convert_pascal_case_to_kebab_case(&pascal_case_layout_name);
+        write!(f, "{}", kebab_case_layout_name)
     }
 }
 
