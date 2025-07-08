@@ -590,9 +590,14 @@ pub struct CliArgs {
     pub project_name: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case", untagged)]
 pub enum Layout {
+    // NOTE: This does not attempt to do _any_ validation on the provided
+    // string. I'm not even sure if that's possible? We could attept to do
+    // basic shape validation using a regex or something but it seems like
+    // overkill.
+    Custom(String),
     EvenHorizontal,
     EvenVertical,
     MainHorizontal,
@@ -602,9 +607,14 @@ pub enum Layout {
 
 impl fmt::Display for Layout {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let pascal_case_layout_name = format!("{:?}", self);
-        let kebab_case_layout_name = convert_pascal_case_to_kebab_case(&pascal_case_layout_name);
-        write!(f, "{}", kebab_case_layout_name)
+        let layout_name = match self {
+            Layout::Custom(value) => value.clone(),
+            _ => {
+                let pascal_case_layout_name = format!("{:?}", self);
+                convert_pascal_case_to_kebab_case(&pascal_case_layout_name)
+            }
+        };
+        write!(f, "{}", layout_name)
     }
 }
 
@@ -1309,7 +1319,7 @@ mod tests {
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
-            config_layout.unwrap().to_string(),
+            config_layout.clone().unwrap().to_string(),
         ];
         let actual =
             build_window_layout_args(&session_name, &window_index, &config_layout, &window_layout);
@@ -1326,7 +1336,7 @@ mod tests {
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
-            window_layout.unwrap().to_string(),
+            window_layout.clone().unwrap().to_string(),
         ];
         let actual =
             build_window_layout_args(&session_name, &window_index, &config_layout, &window_layout);
@@ -1343,7 +1353,7 @@ mod tests {
             String::from("select-layout"),
             String::from("-t"),
             format!("{}:{}", &session_name, &window_index),
-            window_layout.unwrap().to_string(),
+            window_layout.clone().unwrap().to_string(),
         ];
         let actual =
             build_window_layout_args(&session_name, &window_index, &config_layout, &window_layout);
@@ -1406,6 +1416,17 @@ mod tests {
     fn it_converts_layout_to_string() {
         let layout = Layout::Tiled;
         let expected = String::from("tiled");
+        let actual = layout.to_string();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_converts_custom_layout_to_string() {
+        let custom_layout = String::from(
+            "9959,213x59,0,0[213x24,0,0,4,213x2,0,25,5,213x31,0,28{166x31,0,28,6,46x31,167,28,7}]",
+        );
+        let layout = Layout::Custom(custom_layout.clone());
+        let expected = custom_layout;
         let actual = layout.to_string();
         assert_eq!(expected, actual);
     }
