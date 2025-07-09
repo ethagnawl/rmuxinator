@@ -32,8 +32,7 @@ start_directory = "$HOME/Documents"
 [[windows]]
   name = "window two"
   start_directory = "/tmp"
-  # layout = "9959,213x59,0,0[213x24,0,0,4,213x2,0,25,5,213x31,0,28{166x31,0,28,6,46x31,167,28,7}]"
-  layout = "YOLO"
+  layout = "9959,213x59,0,0[213x24,0,0,4,213x2,0,25,5,213x31,0,28{166x31,0,28,6,46x31,167,28,7}]"
 
   [[windows.panes]]
   commands = ["echo pane-one"]
