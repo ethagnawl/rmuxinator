@@ -67,7 +67,7 @@ fn build_pane_args(session_name: &str, window_index: usize) -> Vec<Vec<String>> 
     // output.
     // See:
     // - https://github.com/ethagnawl/rmuxinator/issues/45
-    // - https://www.mail-archive.com/tmux-users@googlegroups.com/msg01241.html
+    // - https://web.archive.org/web/20250709171739/https://www.mail-archive.com/tmux-users@googlegroups.com/msg01241.html
     vec![
         vec![
             String::from("split-window"),
