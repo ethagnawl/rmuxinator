@@ -186,6 +186,21 @@ heavy handed option would be to have this library explicitly kill and restart
 the tmux server but that could have unintended consequences if other tmux
 sessions are in use.
 
+### Layout
+In some situations, splitting panes can result in errors because tmux
+determines that there is not enough usable space in the session. To mitigate
+this, rmuxinator is adopting the common workaround which repeatedly sets the
+layout to tiled after splitting panes and then sets the computed layout only
+once at the end of the block of window configuration code. This will usually be
+transparent but if the user has not specified any layouts, they will see their
+panes laid out using the tiled layout. This strikes the maintainer as a
+perfectly reasonable "default" but I thought it was worth calling out.
+
+tmuxinator uses a similar strategy and the tmux maintainers also suggest this
+approach.
+
+See: https://web.archive.org/web/20250709171739/https://www.mail-archive.com/tmux-users@googlegroups.com/msg01241.html
+
 ## Status
 This project is currently a proof of concept and I'll be duplicating tmuxinator
 features and adding additional improvements as I can find time. Right now, it's
@@ -207,9 +222,9 @@ pane-border-format config option)
 - accepting custom tmux CLI options via the tmux_options config field
 
 ## Still TODO:
+- Support custom layouts?
 - Consider building up and executing a single script (a la tmuxinator) instead
 of shelling out many times
-- Support custom layouts?
 - Break lib into component files (Config, CliArgs, etc.)
 - Do we need custom hooks, like tmuxinator uses for pre_window, project_start,
 etc.? I was hoping to leverage tmux's hooks and save the trouble, but the
