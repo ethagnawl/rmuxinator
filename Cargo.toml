@@ -1,6 +1,6 @@
 [package]
 name = "rmuxinator"
-version = "3.0.0"
+version = "3.1.0"
 authors = ["Peter Doherty <pdoherty@protonmail.com>"]
 edition = "2018"
 description = "tmux project configuration utility"
