@@ -1,8 +1,8 @@
 attached = true
-layout = "main-horizontal"
 name = "example"
 pane_name_user_option = "custom_pane_title"
 start_directory = "$HOME/Documents"
+layout = "9959,213x59,0,0[213x24,0,0,4,213x2,0,25,5,213x31,0,28{166x31,0,28,6,46x31,167,28,7}]"
 
 [[hooks]]
   command = "run-shell \"tmux display-message 'Hi from pane-focus-in hook!'\""
@@ -32,7 +32,7 @@ start_directory = "$HOME/Documents"
 [[windows]]
   name = "window two"
   start_directory = "/tmp"
-  layout = "9959,213x59,0,0[213x24,0,0,4,213x2,0,25,5,213x31,0,28{166x31,0,28,6,46x31,167,28,7}]"
+  layout = "df47,213x57,0,0[213x23,0,0,4,213x1,0,24,5,213x31,0,26{31x31,0,26,6,181x31,32,26,7}]"
 
   [[windows.panes]]
   commands = ["echo pane-one"]

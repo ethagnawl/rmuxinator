@@ -66,6 +66,7 @@ tmux_options = "-f /tmp/tmux.work.conf -L work-socket"
   commands = ["echo hi one", "echo intermediate one", "echo bye one"]
 
 [[windows]]
+  layout = "df47,213x57,0,0[213x23,0,0,4,213x1,0,24,5,213x31,0,26{31x31,0,26,6,181x31,32,26,7}]"
   name = "two"
   start_directory = "/home/peter/projects/sample-project"
 
@@ -92,7 +93,7 @@ Optional attributes will be noted below.
 ###### Optional
 -  `attached` (bool; defaults to `true`; whether or not to attach to newly created tmux session)
 - `hooks` (array; see dedicated entry)
-- `layout` (string; preset tmux layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled")
+- `layout` (string; preset layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled" or custom layout of the form displayed by `tmux list-windows` -- see samples/CustomLayout.toml)
 - `pane_name_user_option` (string; must have matching entry in .tmux.conf (e.g.  `set -g pane-border-format "#{@custom_pane_title}"`)
 - `start_directory` (string)
 - `tmux_options` (string; CLI flags to pass through to tmux)
@@ -105,7 +106,7 @@ Optional attributes will be noted below.
 - `panes` (array; see dedicated entry)
 
 ###### Optional
-- `layout` (string; preset tmux layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled")
+- `layout` (string; preset layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled" or custom layout of the form displayed by `tmux list-windows` -- see samples/CustomLayout.toml)
 - `name` (string)
 - `start_directory` (string)
 
@@ -222,7 +223,6 @@ pane-border-format config option)
 - accepting custom tmux CLI options via the tmux_options config field
 
 ## Still TODO:
-- Support custom layouts?
 - Consider building up and executing a single script (a la tmuxinator) instead
 of shelling out many times
 - Break lib into component files (Config, CliArgs, etc.)
