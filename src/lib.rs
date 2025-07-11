@@ -29,11 +29,28 @@ extern crate toml;
 // _and_ the instance it returns and the methods
 // - ethagnawl
 
-fn run_tmux_command(command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
+fn binary_exists(name: &str) -> bool {
+    Command::new(name)
+        .arg("-V")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+fn run_tmux_command(
+    bin: &String,
+    command: &[String],
+    wait: bool,
+) -> Result<Output, Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
     // TODO: This fn should also accept an optional tmux config file to use with `-f`
-    let mut tmux = Command::new("tmux");
+
+    if !binary_exists(bin) {
+        panic!("'{}' binary could not be found", bin);
+    }
+
+    let mut tmux = Command::new(bin);
     if wait {
         let child = tmux.args(command).spawn()?;
         let output: Output = child.wait_with_output()?;
@@ -44,14 +61,24 @@ fn run_tmux_command(command: &[String], wait: bool) -> Result<Output, Box<dyn Er
 }
 
 trait TmuxCommandRunner {
-    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
+    fn run_tmux_command(
+        &self,
+        bin: &String,
+        command: &[String],
+        wait: bool,
+    ) -> Result<Output, Box<dyn Error>>;
 }
 
 struct TmuxWrapper;
 
 impl TmuxCommandRunner for TmuxWrapper {
-    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
-        run_tmux_command(command, wait)
+    fn run_tmux_command(
+        &self,
+        bin: &String,
+        command: &[String],
+        wait: bool,
+    ) -> Result<Output, Box<dyn Error>> {
+        run_tmux_command(bin, command, wait)
     }
 }
 
@@ -444,7 +471,7 @@ fn get_tmux_base_indices(
         commands = build_commands_with_tmux_options_prefix(tmux_options, commands);
     }
 
-    let output = tmux_command_runner.run_tmux_command(&commands[0].0, commands[0].1);
+    let output = tmux_command_runner.run_tmux_command(&config.bin, &commands[0].0, commands[0].1);
     let pane_base_index_re = Regex::new(r"(?:base-index (?P<base_index>\d+))?(?:.*\n)?(?:pane-base-index (?P<pane_base_index>\d+))?").unwrap();
 
     // NOTE: This is a bit redundant but feels _better_ than using Option
@@ -485,7 +512,7 @@ fn run_start_(
     for command in commands {
         // TODO: run_tmux_command output should be handled and used to report
         // errors to the user.
-        let _ = tmux_command_runner.run_tmux_command(&command.0, command.1);
+        let _ = tmux_command_runner.run_tmux_command(&config.bin, &command.0, command.1);
     }
     Ok(())
 }
@@ -507,7 +534,7 @@ fn run_debug_(
 ) -> Result<(), Box<dyn Error>> {
     let base_indices = get_tmux_base_indices(&config, tmux_command_runner);
     for command in convert_config_to_tmux_commands(&config, base_indices) {
-        println!("tmux {}", command.0.join(" "));
+        println!("{} {}", &config.bin, command.0.join(" "));
     }
 
     Ok(())
@@ -743,8 +770,16 @@ fn default_as_true() -> bool {
     true
 }
 
+// HACK: required in order to set serde default bin string in Config
+fn default_as_tmux() -> String {
+    String::from("tmux")
+}
+
 #[derive(Derivative, Debug, Default, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default = "default_as_tmux")]
+    // TODO: Do we want to validate the value? tmux|tmux-rs?
+    pub bin: String,
     // TODO: add base_index w/ default?
     #[serde(default = "default_as_true")]
     pub attached: bool,
@@ -826,7 +861,7 @@ mod tests {
     mock! {
         TmuxCommandRunner {}
         impl TmuxCommandRunner for TmuxCommandRunner {
-            fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
+            fn run_tmux_command(&self, bin: &String, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
         }
     }
 
