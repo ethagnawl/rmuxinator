@@ -3,7 +3,9 @@ layout = "main-horizontal"
 name = "example"
 pane_name_user_option = "custom_pane_title"
 start_directory = "$HOME/Documents"
-bin = "tmux-rs"
+# terminal_multiplexer = "tmux"
+# terminal_multiplexer = "tmux-rs"
+terminal_multiplexer = "tmux-wrapper.sh"
 
 [[hooks]]
   command = "run-shell \"tmux display-message 'Hi from pane-focus-in hook!'\""
