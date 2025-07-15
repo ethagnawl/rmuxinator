@@ -1141,6 +1141,25 @@ mod tests {
     }
 
     #[test]
+    fn test_it_uses_a_custom_terminal_multiplexer_when_provided() {
+        let terminal_multiplexer = String::from("tmux-yolo");
+        let config = Config {
+            terminal_multiplexer: terminal_multiplexer.clone(),
+            ..Config::default()
+        };
+
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .with(eq(terminal_multiplexer.clone()), always(), always())
+            .times(1..)
+            .returning(|_, _, _| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
+        let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
     fn test_it_doesnt_pass_tmux_options_to_tmux_when_absent() {
         let config = Config {
             attached: false,
