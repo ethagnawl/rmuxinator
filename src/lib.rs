@@ -1160,6 +1160,15 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "'not-tmux' does not seem to be a compatible terminal multiplexer")]
+    fn test_it_does_basic_validation_on_terminal_multiplexer() {
+        let terminal_multiplexer = String::from("not-tmux");
+        let command = vec![];
+        let wait = false;
+        let _ = run_tmux_command(&terminal_multiplexer, &command, wait);
+    }
+
+    #[test]
     fn test_it_doesnt_pass_tmux_options_to_tmux_when_absent() {
         let config = Config {
             attached: false,
