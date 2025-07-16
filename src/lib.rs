@@ -46,6 +46,10 @@ fn run_tmux_command(
     // message.
     // TODO: This fn should also accept an optional tmux config file to use with `-f`
 
+    // TODO: This is very lazy as it repeatedly shells out to terminal_multiplexer.
+    // A better solution would be to introduce something akin to tmuxinator's
+    // Doctor class which does basic validation about the environment (tmux, term, etc.)
+    // only once at the beginning of the top-level routine.
     if !binary_exists(terminal_multiplexer) {
         panic!(
             "'{}' does not seem to be a compatible terminal multiplexer",
@@ -1161,7 +1165,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "'not-tmux' does not seem to be a compatible terminal multiplexer")]
-    fn test_it_does_basic_validation_on_terminal_multiplexer() {
+    fn test_run_tmux_command_does_basic_validation_on_terminal_multiplexer() {
         let terminal_multiplexer = String::from("not-tmux");
         let command = vec![];
         let wait = false;
