@@ -1,0 +1,47 @@
+attached = true
+layout = "main-horizontal"
+name = "example"
+pane_name_user_option = "custom_pane_title"
+start_directory = "$HOME/Documents"
+# terminal_multiplexer = "tmux"
+# terminal_multiplexer = "tmux-rs"
+terminal_multiplexer = "tmux-wrapper.sh"
+
+[[hooks]]
+  command = "run-shell \"tmux display-message 'Hi from pane-focus-in hook!'\""
+  name = "pane-focus-in"
+
+[[windows]]
+  layout = "tiled"
+  name = "window one"
+  start_directory = "$HOME/Downloads"
+
+  [[windows.panes]]
+  commands = ["echo pane-one"]
+  name = "Work"
+  start_directory = "$HOME/Downloads"
+
+  [[windows.panes]]
+  commands = ["echo pane-two"]
+  name = "Music"
+  start_directory = "$HOME/Music"
+
+  [[windows.panes]]
+  commands = ["echo pane-three"]
+  name = "RSS"
+
+  [[windows.panes]]
+  commands = ["echo pane-four"]
+
+[[windows]]
+  name = "window two"
+  start_directory = "/tmp"
+
+  [[windows.panes]]
+  commands = ["echo pane-one"]
+
+  [[windows.panes]]
+  commands = ["echo pane-two"]
+
+  [[windows.panes]]
+  commands = ["echo pane-three"]

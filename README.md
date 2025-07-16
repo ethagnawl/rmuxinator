@@ -91,11 +91,12 @@ Optional attributes will be noted below.
 - `windows` (array; see dedicated entry)
 
 ###### Optional
--  `attached` (bool; defaults to `true`; whether or not to attach to newly created tmux session)
+- `attached` (bool; defaults to `true`; whether or not to attach to newly created tmux session)
 - `hooks` (array; see dedicated entry)
 - `layout` (string; preset layouts: "even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled" or custom layout of the form displayed by `tmux list-windows` -- see samples/CustomLayout.toml)
 - `pane_name_user_option` (string; must have matching entry in .tmux.conf (e.g.  `set -g pane-border-format "#{@custom_pane_title}"`)
 - `start_directory` (string)
+- `terminal_multiplexer` (string; defaults to `tmux`; executable on $PATH which is sufficiently tmux-like (e.g. tmux, tmux-rs or shell script which wraps tmux))
 - `tmux_options` (string; CLI flags to pass through to tmux)
 
 ##### Hooks

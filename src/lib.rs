@@ -29,11 +29,35 @@ extern crate toml;
 // _and_ the instance it returns and the methods
 // - ethagnawl
 
-fn run_tmux_command(command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
+fn binary_exists(name: &str) -> bool {
+    Command::new(name)
+        .arg("-V")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+fn run_tmux_command(
+    terminal_multiplexer: &String,
+    command: &[String],
+    wait: bool,
+) -> Result<Output, Box<dyn Error>> {
     // TODO: Validate Command status and either panic or log useful error
     // message.
     // TODO: This fn should also accept an optional tmux config file to use with `-f`
-    let mut tmux = Command::new("tmux");
+
+    // TODO: This is very lazy as it repeatedly shells out to terminal_multiplexer.
+    // A better solution would be to introduce something akin to tmuxinator's
+    // Doctor class which does basic validation about the environment (tmux, term, etc.)
+    // only once at the beginning of the top-level routine.
+    if !binary_exists(terminal_multiplexer) {
+        panic!(
+            "'{}' does not seem to be a compatible terminal multiplexer",
+            terminal_multiplexer
+        );
+    }
+
+    let mut tmux = Command::new(terminal_multiplexer);
     if wait {
         let child = tmux.args(command).spawn()?;
         let output: Output = child.wait_with_output()?;
@@ -44,14 +68,24 @@ fn run_tmux_command(command: &[String], wait: bool) -> Result<Output, Box<dyn Er
 }
 
 trait TmuxCommandRunner {
-    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
+    fn run_tmux_command(
+        &self,
+        terminal_multiplexer: &String,
+        command: &[String],
+        wait: bool,
+    ) -> Result<Output, Box<dyn Error>>;
 }
 
 struct TmuxWrapper;
 
 impl TmuxCommandRunner for TmuxWrapper {
-    fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>> {
-        run_tmux_command(command, wait)
+    fn run_tmux_command(
+        &self,
+        terminal_multiplexer: &String,
+        command: &[String],
+        wait: bool,
+    ) -> Result<Output, Box<dyn Error>> {
+        run_tmux_command(terminal_multiplexer, command, wait)
     }
 }
 
@@ -444,7 +478,11 @@ fn get_tmux_base_indices(
         commands = build_commands_with_tmux_options_prefix(tmux_options, commands);
     }
 
-    let output = tmux_command_runner.run_tmux_command(&commands[0].0, commands[0].1);
+    let output = tmux_command_runner.run_tmux_command(
+        &config.terminal_multiplexer,
+        &commands[0].0,
+        commands[0].1,
+    );
     let pane_base_index_re = Regex::new(r"(?:base-index (?P<base_index>\d+))?(?:.*\n)?(?:pane-base-index (?P<pane_base_index>\d+))?").unwrap();
 
     // NOTE: This is a bit redundant but feels _better_ than using Option
@@ -485,7 +523,11 @@ fn run_start_(
     for command in commands {
         // TODO: run_tmux_command output should be handled and used to report
         // errors to the user.
-        let _ = tmux_command_runner.run_tmux_command(&command.0, command.1);
+        let _ = tmux_command_runner.run_tmux_command(
+            &config.terminal_multiplexer,
+            &command.0,
+            command.1,
+        );
     }
     Ok(())
 }
@@ -507,7 +549,7 @@ fn run_debug_(
 ) -> Result<(), Box<dyn Error>> {
     let base_indices = get_tmux_base_indices(&config, tmux_command_runner);
     for command in convert_config_to_tmux_commands(&config, base_indices) {
-        println!("tmux {}", command.0.join(" "));
+        println!("{} {}", &config.terminal_multiplexer, command.0.join(" "));
     }
 
     Ok(())
@@ -738,15 +780,12 @@ pub struct Hook {
     name: HookName,
 }
 
-// HACK: required in order to set serde default boolean in Config
-fn default_as_true() -> bool {
-    true
-}
-
 #[derive(Derivative, Debug, Default, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default = "ConfigDefaultValues::default_as_tmux")]
+    pub terminal_multiplexer: String,
     // TODO: add base_index w/ default?
-    #[serde(default = "default_as_true")]
+    #[serde(default = "ConfigDefaultValues::default_as_true")]
     pub attached: bool,
     pub pane_name_user_option: Option<String>,
     #[serde(default)]
@@ -781,6 +820,16 @@ impl Config {
             Ok(config) => Ok(config),
             Err(error) => Err(error.to_string()),
         }
+    }
+}
+
+struct ConfigDefaultValues;
+impl ConfigDefaultValues {
+    pub fn default_as_tmux() -> String {
+        "tmux".to_string()
+    }
+    pub fn default_as_true() -> bool {
+        true
     }
 }
 
@@ -826,7 +875,7 @@ mod tests {
     mock! {
         TmuxCommandRunner {}
         impl TmuxCommandRunner for TmuxCommandRunner {
-            fn run_tmux_command(&self, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
+            fn run_tmux_command(&self, terminal_multiplexer: &String, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
         }
     }
 
@@ -836,8 +885,8 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .times(1)
-            .with(always(), eq(false))
-            .returning(|_y, _z| {
+            .with(always(), always(), eq(false))
+            .returning(|_x, _y, _z| {
                 Ok(create_dummy_output_instance(
                     0,
                     "nope".bytes().collect(),
@@ -857,8 +906,8 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .times(1)
-            .with(always(), eq(false))
-            .returning(|_y, _z| {
+            .with(always(), always(), eq(false))
+            .returning(|_x, _y, _z| {
                 Ok(create_dummy_output_instance(
                     0,
                     "nope".bytes().collect(),
@@ -878,8 +927,8 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .times(1)
-            .with(always(), eq(false))
-            .returning(|_y, _z| {
+            .with(always(), always(), eq(false))
+            .returning(|_x, _y, _z| {
                 Ok(create_dummy_output_instance(
                     0,
                     "base-index 0".bytes().collect(),
@@ -900,8 +949,8 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .times(1)
-            .with(always(), eq(false))
-            .returning(|_y, _z| {
+            .with(always(), always(), eq(false))
+            .returning(|_x, _y, _z| {
                 Ok(create_dummy_output_instance(
                     0,
                     "pane-base-index 0".bytes().collect(),
@@ -921,8 +970,8 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .times(1)
-            .with(always(), eq(false))
-            .returning(|_y, _z| {
+            .with(always(), always(), eq(false))
+            .returning(|_x, _y, _z| {
                 Ok(create_dummy_output_instance(
                     0,
                     "base-index 99".bytes().collect(),
@@ -942,7 +991,7 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], bool| {
+            .withf(|_terminal_multiplexer: &String, command: &[String], bool| {
                 *bool == false
                     && *command
                         == vec![
@@ -957,7 +1006,7 @@ mod tests {
                             "pane-base-index".to_string(),
                         ]
             })
-            .returning(|_y, _z| {
+            .returning(|_x, _y, _z| {
                 Ok(create_dummy_output_instance(
                     0,
                     "pane-base-index 99".bytes().collect(),
@@ -991,7 +1040,7 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], _| {
+            .withf(|_terminal_multiplexer: &String, command: &[String], _| {
                 *command
                     == vec![
                         "-f".to_string(),
@@ -1007,25 +1056,27 @@ mod tests {
                         "pane-base-index".to_string(),
                     ]
             })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(move |command: &[String], _| {
-                *command
-                    == vec![
-                        "-f",
-                        "another-one.conf",
-                        "new-session",
-                        "-d",
-                        "-s",
-                        "foo",
-                        "-n",
-                        "a window",
-                    ]
-            })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .withf(
+                move |_terminal_multiplexer: &String, command: &[String], _| {
+                    *command
+                        == vec![
+                            "-f",
+                            "another-one.conf",
+                            "new-session",
+                            "-d",
+                            "-s",
+                            "foo",
+                            "-n",
+                            "a window",
+                        ]
+                },
+            )
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
         let _ = run_start_(config, &tmux_command_runner);
     }
 
@@ -1049,7 +1100,7 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], _| {
+            .withf(|_terminal_multiplexer: &String, command: &[String], _| {
                 *command
                     == vec![
                         "-f".to_string(),
@@ -1067,28 +1118,58 @@ mod tests {
                         "pane-base-index".to_string(),
                     ]
             })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(move |command: &[String], _| {
-                *command
-                    == vec![
-                        "-f",
-                        "another-one.conf",
-                        "-L",
-                        "custom-socket",
-                        "new-session",
-                        "-d",
-                        "-s",
-                        "foo",
-                        "-n",
-                        "a window",
-                    ]
-            })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .withf(
+                move |_terminal_multiplexer: &String, command: &[String], _| {
+                    *command
+                        == vec![
+                            "-f",
+                            "another-one.conf",
+                            "-L",
+                            "custom-socket",
+                            "new-session",
+                            "-d",
+                            "-s",
+                            "foo",
+                            "-n",
+                            "a window",
+                        ]
+                },
+            )
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
         let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
+    fn test_it_uses_a_custom_terminal_multiplexer_when_provided() {
+        let terminal_multiplexer = String::from("tmux-yolo");
+        let config = Config {
+            terminal_multiplexer: terminal_multiplexer.clone(),
+            ..Config::default()
+        };
+
+        let mut tmux_command_runner = MockTmuxCommandRunner::new();
+
+        tmux_command_runner
+            .expect_run_tmux_command()
+            .with(eq(terminal_multiplexer.clone()), always(), always())
+            .times(1..)
+            .returning(|_, _, _| Ok(create_dummy_output_instance(0, vec![], vec![])));
+
+        let _ = run_start_(config, &tmux_command_runner);
+    }
+
+    #[test]
+    #[should_panic(expected = "'not-tmux' does not seem to be a compatible terminal multiplexer")]
+    fn test_run_tmux_command_does_basic_validation_on_terminal_multiplexer() {
+        let terminal_multiplexer = String::from("not-tmux");
+        let command = vec![];
+        let wait = false;
+        let _ = run_tmux_command(&terminal_multiplexer, &command, wait);
     }
 
     #[test]
@@ -1110,7 +1191,7 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], _| {
+            .withf(|_terminal_multiplexer: &String, command: &[String], _| {
                 *command
                     == vec![
                         "start-server".to_string(),
@@ -1124,15 +1205,17 @@ mod tests {
                         "pane-base-index".to_string(),
                     ]
             })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(move |command: &[String], _| {
-                *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
-            })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .withf(
+                move |_terminal_multiplexer: &String, command: &[String], _| {
+                    *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+                },
+            )
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
         let _ = run_start_(config, &tmux_command_runner);
     }
 
@@ -1153,7 +1236,7 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], _| {
+            .withf(|_terminal_multiplexer: &String, command: &[String], _| {
                 *command
                     == vec![
                         "start-server".to_string(),
@@ -1167,16 +1250,16 @@ mod tests {
                         "pane-base-index".to_string(),
                     ]
             })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], bool| {
+            .withf(|_terminal_multiplexer: &String, command: &[String], bool| {
                 *bool == false
                     && *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
         let _ = run_start_(config, &tmux_command_runner);
     }
 
@@ -1198,7 +1281,7 @@ mod tests {
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], bool| {
+            .withf(|_terminal_multiplexer: &String, command: &[String], bool| {
                 *bool == false
                     && *command
                         == vec![
@@ -1213,24 +1296,24 @@ mod tests {
                             "pane-base-index".to_string(),
                         ]
             })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], bool| {
+            .withf(|_terminal_multiplexer: &String, command: &[String], bool| {
                 *bool == false
                     && *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
             })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         tmux_command_runner
             .expect_run_tmux_command()
             .once()
-            .withf(|command: &[String], bool| {
+            .withf(|_terminal_multiplexer: &String, command: &[String], bool| {
                 *bool == true && *command == vec!["-u", "attach-session", "-t", "foo"]
             })
-            .returning(|_y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
+            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
         let _ = run_start_(config, &tmux_command_runner);
     }
