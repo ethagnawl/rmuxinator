@@ -11,12 +11,12 @@ keywords = ["tmux", "productivity"]
 [dependencies]
 clap = "2.33"
 derivative = "2.2.0"
-mockall = "0.10"
 regex = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.4"
 
 [dev-dependencies]
 assert_cmd = "1"
+mockall = "0.13"
 predicates = "1"
 tempfile = "3"
