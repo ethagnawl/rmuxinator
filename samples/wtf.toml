@@ -1,6 +1,0 @@
-attached = true
-name = "example"
-terminal_multiplexer = "tmux-rs"
-
-[[windows]]
-  commands = ["echo 'hello from tmux-rs!'"]
