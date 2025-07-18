@@ -212,10 +212,24 @@ fn build_pane_command_args(
     ]
 }
 
+fn in_tmux_context() -> bool {
+    Command::new("sh")
+        .arg("-c")
+        .arg("[ -z \"$TMUX\" ]")
+        .output()
+        .map(|output| !output.status.success())
+        .unwrap_or(false)
+}
+
 fn build_attach_command_args(session_name: &str) -> Vec<String> {
+    let session_op = if in_tmux_context() {
+        String::from("switch-client")
+    } else {
+        String::from("attach-session")
+    };
     vec![
         String::from("-u"),
-        String::from("attach-session"),
+        String::from(session_op),
         String::from("-t"),
         String::from(session_name),
     ]
