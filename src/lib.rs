@@ -212,10 +212,24 @@ fn build_pane_command_args(
     ]
 }
 
+fn in_tmux_context() -> bool {
+    Command::new("sh")
+        .arg("-c")
+        .arg("[ -z \"$TMUX\" ]")
+        .output()
+        .map(|output| !output.status.success())
+        .unwrap_or(false)
+}
+
 fn build_attach_command_args(session_name: &str) -> Vec<String> {
+    let session_op = if in_tmux_context() {
+        String::from("switch-client")
+    } else {
+        String::from("attach-session")
+    };
     vec![
         String::from("-u"),
-        String::from("attach-session"),
+        String::from(session_op),
         String::from("-t"),
         String::from(session_name),
     ]
@@ -434,6 +448,12 @@ fn convert_config_to_tmux_commands(
         }
     }
 
+    // TODO: It's not ideal that logic for constructing this command lives in
+    // multiple places (i.e. here and in build_attach_command_args)
+    // I think ideally this would be a _tell, don't ask_ situation and we
+    // either validate that the output is valid (i.e. via Option) and let the
+    // function figure out whether or how to compute the command. This is
+    // probably also something we should do for all of these helper functions.
     if config.attached {
         let attach_args = build_attach_command_args(&config.name);
         commands.push((attach_args, true));
