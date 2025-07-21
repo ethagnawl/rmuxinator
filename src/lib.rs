@@ -225,6 +225,8 @@ impl EnvProvider for SystemEnv {
 
 fn in_tmux_context(env: &dyn EnvProvider) -> bool {
     env.get_var("TMUX")
+        // NOTE: This is naive but if a value is present and non-sensical
+        // (e.g.  999), then all bets are off, anyways.
         .map(|val| !val.is_empty())
         .unwrap_or(false)
 }
