@@ -212,10 +212,34 @@ fn build_pane_command_args(
     ]
 }
 
+trait EnvProvider {
+    fn get_var(&self, key: &str) -> Option<String>;
+}
+
+struct SystemEnv;
+impl EnvProvider for SystemEnv {
+    fn get_var(&self, key: &str) -> Option<String> {
+        std::env::var(key).ok()
+    }
+}
+
+fn in_tmux_context(env: &dyn EnvProvider) -> bool {
+    env.get_var("TMUX")
+        // NOTE: This is naive but if a value is present and non-sensical
+        // (e.g.  999), then all bets are off, anyways.
+        .map(|val| !val.is_empty())
+        .unwrap_or(false)
+}
+
 fn build_attach_command_args(session_name: &str) -> Vec<String> {
+    let session_op = if in_tmux_context(&SystemEnv) {
+        String::from("switch-client")
+    } else {
+        String::from("attach-session")
+    };
     vec![
         String::from("-u"),
-        String::from("attach-session"),
+        String::from(session_op),
         String::from("-t"),
         String::from(session_name),
     ]
@@ -434,6 +458,12 @@ fn convert_config_to_tmux_commands(
         }
     }
 
+    // TODO: It's not ideal that logic for constructing this command lives in
+    // multiple places (i.e. here and in build_attach_command_args)
+    // I think ideally this would be a _tell, don't ask_ situation and we
+    // either validate that the output is valid (i.e. via Option) and let the
+    // function figure out whether or how to compute the command. This is
+    // probably also something we should do for all of these helper functions.
     if config.attached {
         let attach_args = build_attach_command_args(&config.name);
         commands.push((attach_args, true));
@@ -853,6 +883,15 @@ mod tests {
     use super::*;
     use mockall::mock;
     use mockall::predicate::*;
+    use std::collections::HashMap;
+
+    struct MockEnv(HashMap<String, String>);
+
+    impl EnvProvider for MockEnv {
+        fn get_var(&self, key: &str) -> Option<String> {
+            self.0.get(key).cloned()
+        }
+    }
 
     fn create_dummy_output_instance(status: i32, stdout: Vec<u8>, stderr: Vec<u8>) -> Output {
         // NOTE: There's no simple way to create an arbitrary ExitStatus
@@ -877,6 +916,27 @@ mod tests {
         impl TmuxCommandRunner for TmuxCommandRunner {
             fn run_tmux_command(&self, terminal_multiplexer: &String, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
         }
+    }
+
+    #[test]
+    fn test_in_tmux_context_returns_true_when_env_var_is_non_empty_string() {
+        let env = MockEnv(HashMap::from([(
+            String::from("TMUX"),
+            String::from("/tmp/tmux-1000/default,12345,0"),
+        )]));
+        assert_eq!(true, in_tmux_context(&env));
+    }
+
+    #[test]
+    fn test_in_tmux_context_returns_false_when_env_var_is_empty_string() {
+        let env = MockEnv(HashMap::from([(String::from("TMUX"), String::from(""))]));
+        assert_eq!(false, in_tmux_context(&env));
+    }
+
+    #[test]
+    fn test_in_tmux_context_returns_false_when_env_var_not_set() {
+        let env = MockEnv(HashMap::new());
+        assert_eq!(false, in_tmux_context(&env))
     }
 
     #[test]
