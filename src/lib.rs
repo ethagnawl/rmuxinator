@@ -212,17 +212,25 @@ fn build_pane_command_args(
     ]
 }
 
-fn in_tmux_context() -> bool {
-    Command::new("sh")
-        .arg("-c")
-        .arg("[ -z \"$TMUX\" ]")
-        .output()
-        .map(|output| !output.status.success())
+trait EnvProvider {
+    fn get_var(&self, key: &str) -> Option<String>;
+}
+
+struct SystemEnv;
+impl EnvProvider for SystemEnv {
+    fn get_var(&self, key: &str) -> Option<String> {
+        std::env::var(key).ok()
+    }
+}
+
+fn in_tmux_context(env: &dyn EnvProvider) -> bool {
+    env.get_var("TMUX")
+        .map(|val| !val.is_empty())
         .unwrap_or(false)
 }
 
 fn build_attach_command_args(session_name: &str) -> Vec<String> {
-    let session_op = if in_tmux_context() {
+    let session_op = if in_tmux_context(&SystemEnv) {
         String::from("switch-client")
     } else {
         String::from("attach-session")
@@ -873,6 +881,15 @@ mod tests {
     use super::*;
     use mockall::mock;
     use mockall::predicate::*;
+    use std::collections::HashMap;
+
+    struct MockEnv(HashMap<String, String>);
+
+    impl EnvProvider for MockEnv {
+        fn get_var(&self, key: &str) -> Option<String> {
+            self.0.get(key).cloned()
+        }
+    }
 
     fn create_dummy_output_instance(status: i32, stdout: Vec<u8>, stderr: Vec<u8>) -> Output {
         // NOTE: There's no simple way to create an arbitrary ExitStatus
@@ -897,6 +914,27 @@ mod tests {
         impl TmuxCommandRunner for TmuxCommandRunner {
             fn run_tmux_command(&self, terminal_multiplexer: &String, command: &[String], wait: bool) -> Result<Output, Box<dyn Error>>;
         }
+    }
+
+    #[test]
+    fn test_in_tmux_context_returns_true_when_env_var_is_non_empty_string() {
+        let env = MockEnv(HashMap::from([(
+            String::from("TMUX"),
+            String::from("/tmp/tmux-1000/default,12345,0"),
+        )]));
+        assert_eq!(true, in_tmux_context(&env));
+    }
+
+    #[test]
+    fn test_in_tmux_context_returns_false_when_env_var_is_empty_string() {
+        let env = MockEnv(HashMap::from([(String::from("TMUX"), String::from(""))]));
+        assert_eq!(false, in_tmux_context(&env));
+    }
+
+    #[test]
+    fn test_in_tmux_context_returns_false_when_env_var_not_set() {
+        let env = MockEnv(HashMap::new());
+        assert_eq!(false, in_tmux_context(&env))
     }
 
     #[test]
