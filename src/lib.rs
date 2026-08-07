@@ -7,8 +7,12 @@ use std::ffi::OsString;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
-use std::process::{Command, Output};
+use std::io::BufReader;
+use std::process::{Child, ChildStdin, Command, Output, Stdio};
 use std::str::FromStr;
+use std::sync::mpsc::{self, Receiver};
+use std::thread;
+use std::time::{Duration, Instant};
 
 extern crate toml;
 
@@ -86,6 +90,300 @@ impl TmuxCommandRunner for TmuxWrapper {
         wait: bool,
     ) -> Result<Output, Box<dyn Error>> {
         run_tmux_command(terminal_multiplexer, command, wait)
+    }
+}
+
+// The following exists to drive a whole project setup as a single, ordered
+// conversation with one persistent `tmux -C` (control mode) process, instead
+// of spawning a brand new tmux process per command (see run_tmux_command
+// above, still used for the one-shot base-index query and the final
+// interactive attach, neither of which need to be part of this
+// conversation). This removes the race between "N independent tmux
+// invocations" and "a session that may not exist/be fully built yet".
+//
+// Control mode's wire format (tmux(1), CONTROL MODE section): a client
+// writes one tmux command per line to the process' stdin; each command
+// produces one output block on stdout, delimited by `%begin <ts> <cmd-num>
+// <flags>` and a matching `%end ...` (success) or `%error ...` (failure)
+// carrying the same <cmd-num>. Asynchronous notifications (%output,
+// %window-add, etc.) can be interleaved between blocks (but never inside
+// one) once the session is live, so a reader has to tolerate and discard
+// them while waiting for the block it's after.
+
+enum ReaderEvent {
+    Line(String),
+    Eof,
+    Err(String),
+}
+
+// Runs on a dedicated thread for the lifetime of the child process, so reads
+// and writes never contend on the same thread -- without this, a pane that
+// prints output during setup could wedge a naive write-then-read loop.
+fn spawn_line_reader<R: std::io::Read + Send + 'static>(reader: R) -> Receiver<ReaderEvent> {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let mut buf_reader = BufReader::new(reader);
+        loop {
+            let mut line = String::new();
+            match buf_reader.read_line(&mut line) {
+                Ok(0) => {
+                    let _ = tx.send(ReaderEvent::Eof);
+                    break;
+                }
+                Ok(_) => {
+                    if line.ends_with('\n') {
+                        line.pop();
+                        if line.ends_with('\r') {
+                            line.pop();
+                        }
+                    }
+                    if tx.send(ReaderEvent::Line(line)).is_err() {
+                        break;
+                    }
+                }
+                Err(error) => {
+                    let _ = tx.send(ReaderEvent::Err(error.to_string()));
+                    break;
+                }
+            }
+        }
+    });
+    rx
+}
+
+// Wraps every argv element in single quotes so it round-trips through tmux's
+// own command-line parser as exactly one literal token, regardless of
+// content (spaces, quotes, `;`, `#`, `$`, backticks, leading `~`). Single
+// quotes are used specifically because -- unlike double quotes -- tmux never
+// performs $VAR or leading-~ expansion inside them; a pane command like
+// `echo $HOME` must reach the pane's shell unmolested, not get expanded by
+// tmux itself first.
+fn quote_control_mode_token(s: &str) -> String {
+    let mut quoted = String::from("'");
+    for c in s.chars() {
+        if c == '\'' {
+            // Close the quote, emit an escaped literal quote, reopen it.
+            quoted.push_str("'\\''");
+        } else {
+            quoted.push(c);
+        }
+    }
+    quoted.push('\'');
+    quoted
+}
+
+fn quote_control_mode_line(argv: &[String]) -> String {
+    argv.iter()
+        .map(|token| quote_control_mode_token(token))
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+// Parses a `%begin`/`%end`/`%error <ts> <cmd-number> <flags>` line, returning
+// the keyword and command number. Any other line (block content, or an
+// async notification like `%output`) returns None.
+fn parse_control_mode_marker(line: &str) -> Option<(&str, i64)> {
+    let mut parts = line.splitn(4, ' ');
+    let keyword = parts.next()?;
+    if keyword != "%begin" && keyword != "%end" && keyword != "%error" {
+        return None;
+    }
+    let _timestamp = parts.next()?;
+    let command_number = parts.next()?.parse::<i64>().ok()?;
+    Some((keyword, command_number))
+}
+
+#[derive(Debug, PartialEq)]
+struct ControlModeResponse {
+    ok: bool,
+    output: Vec<String>,
+}
+
+trait ControlModeRunner {
+    // Spawns `tmux <tmux_option_tokens> -C <initial_command>` and blocks
+    // until that command's own response block resolves. `initial_command`
+    // must result in this client being attached to a session (e.g.
+    // `new-session` without `-d`), or tmux will run it and exit rather than
+    // staying resident.
+    fn open(
+        &mut self,
+        terminal_multiplexer: &str,
+        tmux_option_tokens: &[String],
+        initial_command: &[String],
+    ) -> Result<ControlModeResponse, Box<dyn Error>>;
+
+    // Quotes `argv` into one control-mode line, writes it, and blocks until
+    // that command's response block resolves.
+    fn send(&mut self, argv: &[String]) -> Result<ControlModeResponse, Box<dyn Error>>;
+
+    // Detaches this control client (leaving the underlying tmux session,
+    // which the server owns independently, running) and waits for the child
+    // process to exit. Idempotent -- a no-op if the session isn't open.
+    fn close(&mut self) -> Result<(), Box<dyn Error>>;
+}
+
+struct ControlModeSession {
+    child: Option<Child>,
+    stdin: Option<ChildStdin>,
+    stdout_rx: Option<Receiver<ReaderEvent>>,
+    stderr_rx: Option<Receiver<ReaderEvent>>,
+}
+
+impl ControlModeSession {
+    fn new() -> Self {
+        ControlModeSession {
+            child: None,
+            stdin: None,
+            stdout_rx: None,
+            stderr_rx: None,
+        }
+    }
+
+    fn response_timeout(&self) -> Duration {
+        Duration::from_secs(10)
+    }
+
+    fn stderr_snapshot(&self) -> String {
+        let mut lines = Vec::new();
+        if let Some(rx) = &self.stderr_rx {
+            while let Ok(ReaderEvent::Line(line)) = rx.try_recv() {
+                lines.push(line);
+            }
+        }
+        lines.join("\n")
+    }
+
+    // Waits for the next `%begin`, discarding any async notifications seen
+    // first, then reads that block through to its matching `%end`/`%error`.
+    fn read_response(&mut self) -> Result<ControlModeResponse, Box<dyn Error>> {
+        loop {
+            match self.next_stdout_event()? {
+                ReaderEvent::Line(line) => {
+                    if let Some(("%begin", command_number)) = parse_control_mode_marker(&line) {
+                        return self.read_block(command_number);
+                    }
+                    // An async notification (%output, %window-add, etc.)
+                    // that arrived between blocks -- discard and keep
+                    // waiting.
+                }
+                _ => unreachable!("next_stdout_event only returns Line or an Err"),
+            }
+        }
+    }
+
+    fn read_block(&mut self, begin_command_number: i64) -> Result<ControlModeResponse, Box<dyn Error>> {
+        let mut output = Vec::new();
+        loop {
+            match self.next_stdout_event()? {
+                ReaderEvent::Line(line) => {
+                    if let Some((keyword, command_number)) = parse_control_mode_marker(&line) {
+                        if (keyword == "%end" || keyword == "%error")
+                            && command_number == begin_command_number
+                        {
+                            return Ok(ControlModeResponse {
+                                ok: keyword == "%end",
+                                output,
+                            });
+                        }
+                    }
+                    output.push(line);
+                }
+                _ => unreachable!("next_stdout_event only returns Line or an Err"),
+            }
+        }
+    }
+
+    fn next_stdout_event(&mut self) -> Result<ReaderEvent, Box<dyn Error>> {
+        let timeout = self.response_timeout();
+        let rx = self
+            .stdout_rx
+            .as_ref()
+            .ok_or("tmux control mode session is not open")?;
+        match rx.recv_timeout(timeout) {
+            Ok(ReaderEvent::Line(line)) => Ok(ReaderEvent::Line(line)),
+            Ok(ReaderEvent::Eof) => Err(format!(
+                "tmux control mode connection closed unexpectedly.{}",
+                match self.stderr_snapshot().as_str() {
+                    "" => String::new(),
+                    stderr => format!(" stderr: {}", stderr),
+                }
+            )
+            .into()),
+            Ok(ReaderEvent::Err(error)) => {
+                Err(format!("error reading from tmux control mode connection: {}", error).into())
+            }
+            Err(_) => Err("timed out waiting for a response from tmux control mode".into()),
+        }
+    }
+}
+
+impl ControlModeRunner for ControlModeSession {
+    fn open(
+        &mut self,
+        terminal_multiplexer: &str,
+        tmux_option_tokens: &[String],
+        initial_command: &[String],
+    ) -> Result<ControlModeResponse, Box<dyn Error>> {
+        let mut child = Command::new(terminal_multiplexer)
+            .args(tmux_option_tokens)
+            .arg("-C")
+            .args(initial_command)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+
+        let stdin = child.stdin.take().ok_or("unable to open tmux's stdin")?;
+        let stdout = child.stdout.take().ok_or("unable to open tmux's stdout")?;
+        let stderr = child.stderr.take().ok_or("unable to open tmux's stderr")?;
+
+        self.stdout_rx = Some(spawn_line_reader(stdout));
+        self.stderr_rx = Some(spawn_line_reader(stderr));
+        self.stdin = Some(stdin);
+        self.child = Some(child);
+
+        self.read_response()
+    }
+
+    fn send(&mut self, argv: &[String]) -> Result<ControlModeResponse, Box<dyn Error>> {
+        let line = quote_control_mode_line(argv);
+        let stdin = self
+            .stdin
+            .as_mut()
+            .ok_or("tmux control mode session is not open")?;
+        // NOTE: ChildStdin is an unbuffered pipe handle -- writes go
+        // straight to the OS pipe. If this is ever wrapped in a BufWriter,
+        // every write must be followed by an explicit flush() or commands
+        // will sit in userspace while tmux waits on stdin forever.
+        writeln!(stdin, "{}", line)?;
+        stdin.flush()?;
+        self.read_response()
+    }
+
+    fn close(&mut self) -> Result<(), Box<dyn Error>> {
+        if self.stdin.is_none() {
+            return Ok(());
+        }
+
+        // Best-effort: detach this control client. Sessions are independent,
+        // server-owned objects, so this leaves the session itself running.
+        let _ = self.send(&[String::from("detach-client")]);
+
+        self.stdin = None;
+        self.stdout_rx = None;
+        self.stderr_rx = None;
+
+        if let Some(mut child) = self.child.take() {
+            let _ = child.wait();
+        }
+
+        Ok(())
+    }
+}
+
+impl Drop for ControlModeSession {
+    fn drop(&mut self) {
+        let _ = self.close();
     }
 }
 
@@ -544,21 +842,189 @@ fn get_tmux_base_indices(
     tmux_base_indices
 }
 
+// `new-window`/`split-window` each spawn a new shell in a new pane. Typing
+// into that pane immediately (as convert_config_to_tmux_commands' pane
+// commands do) can win a race against the shell's own startup (loading rc
+// files, etc.): the keystrokes get caught by the kernel's tty-cooked-mode
+// echo before the shell is reading its input, then get replayed once it is,
+// which looks like garbled, duplicated pane output. The previous
+// per-command-process transport masked this by accident (process spawn
+// overhead gave the shell time to start); sending everything over one
+// already-open connection is fast enough to reliably lose the race.
+//
+// A fixed delay here is a guess, and an unreliable one -- it either wastes
+// time on fast-starting shells or still loses the race against slow ones.
+// Instead, poll the pane's content (which is blank until its shell starts
+// writing to it) until it stops changing, which adapts to however long that
+// particular shell actually takes, up to a safety cap so a pathological
+// case can't hang the whole run.
+const PANE_SETTLE_POLL_INTERVAL: Duration = Duration::from_millis(20);
+const PANE_SETTLE_QUIET_PERIOD: Duration = Duration::from_millis(40);
+const PANE_SETTLE_MAX_WAIT: Duration = Duration::from_secs(3);
+
+fn wait_for_pane_to_settle(control_mode_runner: &mut dyn ControlModeRunner, target: &str) {
+    let deadline = Instant::now() + PANE_SETTLE_MAX_WAIT;
+    let mut last_content: Option<Vec<String>> = None;
+    let mut unchanged_since: Option<Instant> = None;
+
+    loop {
+        let response = match control_mode_runner.send(&[
+            "capture-pane".to_string(),
+            "-p".to_string(),
+            "-t".to_string(),
+            target.to_string(),
+        ]) {
+            // capture-pane itself failing (a transport error, or tmux
+            // rejecting it, e.g. because the target doesn't exist) means
+            // there's nothing more to learn by retrying -- give up
+            // immediately rather than spinning until PANE_SETTLE_MAX_WAIT.
+            Err(_) => return,
+            Ok(response) if !response.ok => return,
+            Ok(response) => response,
+        };
+
+        let has_content = response.output.iter().any(|line| !line.trim().is_empty());
+        if has_content {
+            if last_content.as_ref() == Some(&response.output) {
+                if unchanged_since.map_or(false, |since| since.elapsed() >= PANE_SETTLE_QUIET_PERIOD) {
+                    return;
+                }
+                if unchanged_since.is_none() {
+                    unchanged_since = Some(Instant::now());
+                }
+            } else {
+                last_content = Some(response.output);
+                unchanged_since = None;
+            }
+        }
+
+        if Instant::now() >= deadline {
+            return;
+        }
+        thread::sleep(PANE_SETTLE_POLL_INTERVAL);
+    }
+}
+
+// Extracts the `-t <target>` value from a `new-window`/`split-window`
+// command built by build_create_window_args/build_pane_args, both of which
+// always emit it as their second and third tokens.
+fn pane_creation_target(argv: &[String]) -> Option<&str> {
+    match argv.first().map(String::as_str) {
+        Some("new-window") | Some("split-window") => argv.get(2).map(String::as_str),
+        _ => None,
+    }
+}
+
+// Separately from the pane-creation race above: a shell's line editor
+// (readline, zle, ...) restores the pty to cooked/canonical mode while a
+// command runs and only re-enables its own raw-mode input handling right
+// before reading the next line. Two `send-keys` sent back-to-back with
+// near-zero gap -- which a persistent control-mode connection can easily
+// do, unlike the old per-command-process transport -- can land the second
+// one inside that brief window, with the same garbled-echo symptom as the
+// pane-creation race. A poll-until-stable check is overkill for this (the
+// window is small and roughly constant, not open-ended like shell
+// startup); empirically a 10ms gap was already enough to reliably clear it,
+// so this uses a more conservative (but still small) fixed pause instead.
+const SEND_KEYS_SETTLE_DURATION: Duration = Duration::from_millis(20);
+
 fn run_start_(
     config: Config,
     tmux_command_runner: &dyn TmuxCommandRunner,
+    control_mode_runner: &mut dyn ControlModeRunner,
 ) -> Result<(), Box<dyn Error>> {
+    // Base indices are a read-only, session-independent query, so it's run
+    // as a one-shot process ahead of the control-mode connection rather than
+    // over it -- there's no atomicity to gain by including it.
     let base_indices = get_tmux_base_indices(&config, tmux_command_runner);
-    let commands = convert_config_to_tmux_commands(&config, base_indices);
-    for command in commands {
-        // TODO: run_tmux_command output should be handled and used to report
-        // errors to the user.
-        let _ = tmux_command_runner.run_tmux_command(
-            &config.terminal_multiplexer,
-            &command.0,
-            command.1,
-        );
+    let mut commands = convert_config_to_tmux_commands(&config, base_indices).into_iter();
+
+    // `tmux_options` (e.g. `-f`/`-L`) is prefixed onto every command by
+    // convert_config_to_tmux_commands for run_debug_'s benefit. For control
+    // mode it's only valid as a real CLI flag on the process spawn, so it's
+    // stripped back off of each command here and passed to `open` once.
+    let tmux_option_token_count = config
+        .tmux_options
+        .as_ref()
+        .map_or(0, |tmux_options| tmux_options.split(' ').count());
+
+    let (create_session_args, _) = commands
+        .next()
+        .expect("convert_config_to_tmux_commands always returns a session-creation command");
+    let tmux_option_tokens = create_session_args[..tmux_option_token_count].to_vec();
+    let mut initial_command = create_session_args[tmux_option_token_count..].to_vec();
+    // `-d` (always at this position -- see build_session_args) suppresses
+    // attachment, but the control-mode client needs to attach in order to
+    // stay resident for the rest of the setup sequence.
+    initial_command.remove(1);
+
+    control_mode_runner.open(&config.terminal_multiplexer, &tmux_option_tokens, &initial_command)?;
+    // The initial command always creates the session's first pane, spawning
+    // a new shell in it. Settling is deferred until (if) we're about to type
+    // into it -- see the loop below -- rather than done eagerly here, so a
+    // pane nothing ever gets sent to (no start_directory, no commands)
+    // doesn't pay for a wait it doesn't need.
+    let mut pending_settle_target = Some(config.name.clone());
+
+    let mut attach_command = None;
+    let mut commands = commands.peekable();
+    while let Some((argv, wait)) = commands.next() {
+        if wait {
+            // The final interactive attach, if any, is always the last
+            // command and has to remain a normal process spawn with
+            // inherited stdio -- a control-mode client's stdin/stdout are
+            // pipes we created, not the user's real terminal, so there's no
+            // way to hand this connection off to become it in place.
+            attach_command = Some(argv);
+            continue;
+        }
+
+        let interior = &argv[tmux_option_token_count..];
+        let is_send_keys = interior.first().map(String::as_str) == Some("send-keys");
+
+        // A freshly created pane only needs settling right before we
+        // actually type into it -- see wait_for_pane_to_settle for why.
+        if is_send_keys {
+            if let Some(target) = pending_settle_target.take() {
+                wait_for_pane_to_settle(control_mode_runner, &target);
+            }
+        }
+
+        let response = control_mode_runner.send(interior)?;
+        if !response.ok {
+            let _ = control_mode_runner.close();
+            return Err(format!(
+                "tmux command failed: {}\n{}",
+                interior.join(" "),
+                response.output.join("\n")
+            )
+            .into());
+        }
+
+        if let Some(target) = pane_creation_target(interior) {
+            pending_settle_target = Some(target.to_string());
+        } else if is_send_keys {
+            // Only pace if the next command is another send-keys -- pane
+            // commands are always contiguous (see convert_config_to_tmux_
+            // commands), so if it isn't, nothing is left racing this pane
+            // before we move on to something else.
+            let next_is_send_keys = commands.peek().map_or(false, |(next_argv, next_wait)| {
+                !next_wait
+                    && next_argv.get(tmux_option_token_count).map(String::as_str)
+                        == Some("send-keys")
+            });
+            if next_is_send_keys {
+                thread::sleep(SEND_KEYS_SETTLE_DURATION);
+            }
+        }
     }
+
+    control_mode_runner.close()?;
+
+    if let Some(attach_args) = attach_command {
+        tmux_command_runner.run_tmux_command(&config.terminal_multiplexer, &attach_args, true)?;
+    }
+
     Ok(())
 }
 
@@ -570,7 +1036,7 @@ pub fn run_start(config: Config) -> Result<(), Box<dyn Error>> {
     // This is the best approach I've hit upon yet but I'm still not convinced
     // it's a good, worthwhile idea.
     // - ethagnawl
-    run_start_(config, &TmuxWrapper)
+    run_start_(config, &TmuxWrapper, &mut ControlModeSession::new())
 }
 
 fn run_debug_(
@@ -918,6 +1384,41 @@ mod tests {
         }
     }
 
+    fn create_ok_control_mode_response() -> ControlModeResponse {
+        ControlModeResponse {
+            ok: true,
+            output: vec![],
+        }
+    }
+
+    fn create_failed_control_mode_response() -> ControlModeResponse {
+        ControlModeResponse {
+            ok: false,
+            output: vec![],
+        }
+    }
+
+    // run_start_ always calls wait_for_pane_to_settle at least once (right
+    // after opening the session). It polls via `send`, so a failed response
+    // makes it give up immediately instead of spinning, keeping these tests
+    // fast and deterministic -- their point is to exercise run_start_'s
+    // command sequencing, not the settle-check itself.
+    fn stub_pane_settle_checks(control_mode_runner: &mut MockControlModeRunner) {
+        control_mode_runner
+            .expect_send()
+            .withf(|argv: &[String]| argv.first().map(String::as_str) == Some("capture-pane"))
+            .returning(|_| Ok(create_failed_control_mode_response()));
+    }
+
+    mock! {
+        ControlModeRunner {}
+        impl ControlModeRunner for ControlModeRunner {
+            fn open(&mut self, terminal_multiplexer: &str, tmux_option_tokens: &[String], initial_command: &[String]) -> Result<ControlModeResponse, Box<dyn Error>>;
+            fn send(&mut self, argv: &[String]) -> Result<ControlModeResponse, Box<dyn Error>>;
+            fn close(&mut self) -> Result<(), Box<dyn Error>>;
+        }
+    }
+
     #[test]
     fn test_in_tmux_context_returns_true_when_env_var_is_non_empty_string() {
         let env = MockEnv(HashMap::from([(
@@ -1118,26 +1619,30 @@ mod tests {
             })
             .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
-        tmux_command_runner
-            .expect_run_tmux_command()
+        let mut control_mode_runner = MockControlModeRunner::new();
+        stub_pane_settle_checks(&mut control_mode_runner);
+        control_mode_runner
+            .expect_open()
             .once()
             .withf(
-                move |_terminal_multiplexer: &String, command: &[String], _| {
-                    *command
-                        == vec![
-                            "-f",
-                            "another-one.conf",
-                            "new-session",
-                            "-d",
-                            "-s",
-                            "foo",
-                            "-n",
-                            "a window",
-                        ]
+                |_terminal_multiplexer: &str,
+                 tmux_option_tokens: &[String],
+                 initial_command: &[String]| {
+                    *tmux_option_tokens == vec!["-f".to_string(), "another-one.conf".to_string()]
+                        && *initial_command
+                            == vec![
+                                "new-session".to_string(),
+                                "-s".to_string(),
+                                "foo".to_string(),
+                                "-n".to_string(),
+                                "a window".to_string(),
+                            ]
                 },
             )
-            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
-        let _ = run_start_(config, &tmux_command_runner);
+            .returning(|_, _, _| Ok(create_ok_control_mode_response()));
+        control_mode_runner.expect_close().once().returning(|| Ok(()));
+
+        let _ = run_start_(config, &tmux_command_runner, &mut control_mode_runner);
     }
 
     #[test]
@@ -1180,28 +1685,36 @@ mod tests {
             })
             .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
-        tmux_command_runner
-            .expect_run_tmux_command()
+        let mut control_mode_runner = MockControlModeRunner::new();
+        stub_pane_settle_checks(&mut control_mode_runner);
+        control_mode_runner
+            .expect_open()
             .once()
             .withf(
-                move |_terminal_multiplexer: &String, command: &[String], _| {
-                    *command
+                |_terminal_multiplexer: &str,
+                 tmux_option_tokens: &[String],
+                 initial_command: &[String]| {
+                    *tmux_option_tokens
                         == vec![
-                            "-f",
-                            "another-one.conf",
-                            "-L",
-                            "custom-socket",
-                            "new-session",
-                            "-d",
-                            "-s",
-                            "foo",
-                            "-n",
-                            "a window",
+                            "-f".to_string(),
+                            "another-one.conf".to_string(),
+                            "-L".to_string(),
+                            "custom-socket".to_string(),
                         ]
+                        && *initial_command
+                            == vec![
+                                "new-session".to_string(),
+                                "-s".to_string(),
+                                "foo".to_string(),
+                                "-n".to_string(),
+                                "a window".to_string(),
+                            ]
                 },
             )
-            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
-        let _ = run_start_(config, &tmux_command_runner);
+            .returning(|_, _, _| Ok(create_ok_control_mode_response()));
+        control_mode_runner.expect_close().once().returning(|| Ok(()));
+
+        let _ = run_start_(config, &tmux_command_runner, &mut control_mode_runner);
     }
 
     #[test]
@@ -1220,7 +1733,19 @@ mod tests {
             .times(1..)
             .returning(|_, _, _| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
-        let _ = run_start_(config, &tmux_command_runner);
+        let mut control_mode_runner = MockControlModeRunner::new();
+        stub_pane_settle_checks(&mut control_mode_runner);
+        let expected_terminal_multiplexer = terminal_multiplexer.clone();
+        control_mode_runner
+            .expect_open()
+            .withf(move |terminal_multiplexer: &str, _, _| {
+                terminal_multiplexer == expected_terminal_multiplexer
+            })
+            .times(1..)
+            .returning(|_, _, _| Ok(create_ok_control_mode_response()));
+        control_mode_runner.expect_close().returning(|| Ok(()));
+
+        let _ = run_start_(config, &tmux_command_runner, &mut control_mode_runner);
     }
 
     #[test]
@@ -1267,16 +1792,30 @@ mod tests {
             })
             .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
-        tmux_command_runner
-            .expect_run_tmux_command()
+        let mut control_mode_runner = MockControlModeRunner::new();
+        stub_pane_settle_checks(&mut control_mode_runner);
+        control_mode_runner
+            .expect_open()
             .once()
             .withf(
-                move |_terminal_multiplexer: &String, command: &[String], _| {
-                    *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
+                |_terminal_multiplexer: &str,
+                 tmux_option_tokens: &[String],
+                 initial_command: &[String]| {
+                    *tmux_option_tokens == Vec::<String>::new()
+                        && *initial_command
+                            == vec![
+                                "new-session".to_string(),
+                                "-s".to_string(),
+                                "foo".to_string(),
+                                "-n".to_string(),
+                                "a window".to_string(),
+                            ]
                 },
             )
-            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
-        let _ = run_start_(config, &tmux_command_runner);
+            .returning(|_, _, _| Ok(create_ok_control_mode_response()));
+        control_mode_runner.expect_close().once().returning(|| Ok(()));
+
+        let _ = run_start_(config, &tmux_command_runner, &mut control_mode_runner);
     }
 
     #[test]
@@ -1312,15 +1851,18 @@ mod tests {
             })
             .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
-        tmux_command_runner
-            .expect_run_tmux_command()
+        // No further tmux_command_runner expectations are registered, so an
+        // attach call (which would go through run_tmux_command with
+        // wait=true) here would panic as unexpected.
+        let mut control_mode_runner = MockControlModeRunner::new();
+        stub_pane_settle_checks(&mut control_mode_runner);
+        control_mode_runner
+            .expect_open()
             .once()
-            .withf(|_terminal_multiplexer: &String, command: &[String], bool| {
-                *bool == false
-                    && *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
-            })
-            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
-        let _ = run_start_(config, &tmux_command_runner);
+            .returning(|_, _, _| Ok(create_ok_control_mode_response()));
+        control_mode_runner.expect_close().once().returning(|| Ok(()));
+
+        let _ = run_start_(config, &tmux_command_runner, &mut control_mode_runner);
     }
 
     #[test]
@@ -1362,20 +1904,19 @@ mod tests {
             .expect_run_tmux_command()
             .once()
             .withf(|_terminal_multiplexer: &String, command: &[String], bool| {
-                *bool == false
-                    && *command == vec!["new-session", "-d", "-s", "foo", "-n", "a window"]
-            })
-            .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
-
-        tmux_command_runner
-            .expect_run_tmux_command()
-            .once()
-            .withf(|_terminal_multiplexer: &String, command: &[String], bool| {
                 *bool == true && *command == vec!["-u", "attach-session", "-t", "foo"]
             })
             .returning(|_x, _y, _z| Ok(create_dummy_output_instance(0, vec![], vec![])));
 
-        let _ = run_start_(config, &tmux_command_runner);
+        let mut control_mode_runner = MockControlModeRunner::new();
+        stub_pane_settle_checks(&mut control_mode_runner);
+        control_mode_runner
+            .expect_open()
+            .once()
+            .returning(|_, _, _| Ok(create_ok_control_mode_response()));
+        control_mode_runner.expect_close().once().returning(|| Ok(()));
+
+        let _ = run_start_(config, &tmux_command_runner, &mut control_mode_runner);
     }
 
     #[test]
